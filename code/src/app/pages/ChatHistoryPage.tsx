@@ -14,7 +14,7 @@ export function ChatHistoryPage() {
         {/* Right panel – empty state */}
         <div
           className="flex-1 flex flex-col items-center justify-center gap-4"
-          style={{ background: "#FEF0E8" }}
+          style={{ background: "#fff7f2" }}
         >
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"

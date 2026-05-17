@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
-import { mockContacts } from "../data/mockData";
+import { useAppData } from "../store/AppDataContext";
 
 interface ContactsListProps {
   activeId?: number;
@@ -10,9 +10,28 @@ interface ContactsListProps {
 export function ContactsList({ activeId }: ContactsListProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const { currentUser, chatThreads, getUserById, markThreadRead } = useAppData();
 
-  const filtered = mockContacts.filter((c) =>
-    c.name.includes(search) || c.lastMessage.includes(search)
+  const contacts = useMemo(
+    () =>
+      chatThreads
+        .map((thread) => {
+          const otherId = thread.participantIds.find((id) => id !== currentUser.id);
+          const user = getUserById(otherId);
+          if (!user) return null;
+          const lastMessageTime = thread.messages.at(-1)?.createdAt;
+          return {
+            thread,
+            user,
+            unread: thread.unreadCountByUserId[currentUser.id] ?? 0,
+            time: lastMessageTime
+              ? new Date(lastMessageTime).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+              : "",
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        .filter((item) => item.user.name.includes(search) || item.thread.lastMessage.includes(search)),
+    [chatThreads, currentUser.id, getUserById, search],
   );
 
   return (
@@ -20,7 +39,6 @@ export function ContactsList({ activeId }: ContactsListProps) {
       className="flex flex-col h-full overflow-hidden"
       style={{ background: "#FFF8F4", borderRight: "1.5px solid #F5DDD0" }}
     >
-      {/* Search box */}
       <div className="p-3 flex-shrink-0">
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-full"
@@ -31,50 +49,47 @@ export function ContactsList({ activeId }: ContactsListProps) {
             type="text"
             placeholder="チャットを検索"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             className="flex-1 outline-none text-sm bg-transparent"
             style={{ color: "#555" }}
           />
         </div>
       </div>
 
-      {/* Contact list */}
       <div className="flex-1 overflow-y-auto">
-        {filtered.map((contact) => {
-          const isActive = contact.id === activeId;
+        {contacts.map(({ thread, user, unread, time }) => {
+          const isActive = user.profileId === activeId;
           return (
             <button
-              key={contact.id}
-              onClick={() => navigate(`/chat/${contact.id}`)}
+              key={thread.id}
+              onClick={() => {
+                markThreadRead(thread.id);
+                navigate(`/chat/${user.profileId}`);
+              }}
               className="w-full flex items-center gap-3 px-3 py-3 text-left transition-colors"
               style={{
                 background: isActive ? "#FEE6D5" : "transparent",
                 borderBottom: "1px solid #F5DDD0",
               }}
             >
-              {/* Avatar */}
               <div className="relative flex-shrink-0">
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
-                  style={{ background: contact.avatarColor }}
+                  style={{ background: user.avatarColor }}
                 >
-                  {contact.avatarEmoji}
+                  {user.avatarEmoji}
                 </div>
-                {contact.online && (
+                {user.online && (
                   <div
                     className="absolute bottom-0 right-1 w-3 h-3 rounded-full border-2 border-white"
                     style={{ background: "#22C55E" }}
                   />
                 )}
-                <span
-                  className="absolute -bottom-1 -right-0.5 text-xs"
-                  style={{ lineHeight: 1 }}
-                >
-                  {contact.flag}
+                <span className="absolute -bottom-1 -right-0.5 text-xs" style={{ lineHeight: 1 }}>
+                  {user.countryCode}
                 </span>
               </div>
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span
@@ -84,20 +99,17 @@ export function ContactsList({ activeId }: ContactsListProps) {
                       fontSize: "0.9rem",
                     }}
                   >
-                    {contact.name}
+                    {user.name}
                   </span>
                   <span style={{ fontSize: "0.72rem", color: "#AAAAAA", flexShrink: 0 }}>
-                    {contact.time}
+                    {time}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5 gap-1">
-                  <span
-                    className="truncate"
-                    style={{ fontSize: "0.8rem", color: "#888" }}
-                  >
-                    {contact.lastMessage}
+                  <span className="truncate" style={{ fontSize: "0.8rem", color: "#888" }}>
+                    {thread.lastMessage || "まだメッセージがありません"}
                   </span>
-                  {contact.unread > 0 && (
+                  {unread > 0 && (
                     <span
                       className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
                       style={{
@@ -106,7 +118,7 @@ export function ContactsList({ activeId }: ContactsListProps) {
                         fontWeight: 700,
                       }}
                     >
-                      {contact.unread}
+                      {unread}
                     </span>
                   )}
                 </div>

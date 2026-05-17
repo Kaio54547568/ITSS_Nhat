@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, SlidersHorizontal, ChevronLeft, ChevronRight, ChevronDown, Eye } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, Eye } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
 import { mockAdminReports, type AdminReport } from "../../data/adminMockData";
 
@@ -95,12 +95,6 @@ export function AdminReportsPage() {
                 />
                 <Search size={14} style={{ color: "#AAAAAA" }} />
               </div>
-              <button
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ border: "1.5px solid #F0D5C8", background: "white" }}
-              >
-                <SlidersHorizontal size={15} style={{ color: "#F97316" }} />
-              </button>
             </div>
           </div>
 

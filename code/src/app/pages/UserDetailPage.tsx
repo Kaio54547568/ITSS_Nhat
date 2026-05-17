@@ -1,12 +1,14 @@
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, Flag, MapPin, MessageCircle, Star } from "lucide-react";
 import { Layout } from "../components/Layout";
-import { getAppUserById } from "../data/appData";
+import { useAppData } from "../store/AppDataContext";
 
 export function UserDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const user = getAppUserById(id);
+  const { getUserById, getThreadByProfileId } = useAppData();
+  const user = getUserById(id);
+  const thread = getThreadByProfileId(id);
 
   if (!user) {
     return (
@@ -20,13 +22,7 @@ export function UserDetailPage() {
 
   return (
     <Layout>
-      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden">
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "40%" }}>
-          <svg viewBox="0 0 1440 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" className="w-full h-full">
-            <path d="M0,120 C360,40 1080,220 1440,80 L1440,400 L0,400 Z" fill="#F97316" />
-          </svg>
-        </div>
-
+      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden" style={{ background: "#fff7f2" }}>
         <div className="relative z-10 max-w-3xl mx-auto px-4 pt-5 pb-12">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 mb-4 hover:opacity-70 transition-opacity" style={{ color: "#1A1A1A", fontSize: "0.95rem" }}>
             <ArrowLeft size={18} />
@@ -86,7 +82,7 @@ export function UserDetailPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button onClick={() => navigate(`/chat/${user.profileId}`)} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all hover:opacity-90 active:scale-95" style={{ background: "#F97316", color: "white", fontWeight: 700 }}>
+                  <button disabled={!thread} onClick={() => thread && navigate(`/chat/${user.profileId}`)} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60" style={{ background: "#F97316", color: "white", fontWeight: 700 }}>
                     <MessageCircle size={17} />
                     チャット
                   </button>
