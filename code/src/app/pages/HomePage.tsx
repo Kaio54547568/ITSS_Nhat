@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router";
 import { Layout } from "../components/Layout";
-import { getSession } from "../data/auth";
-import { getAppUserById } from "../data/appData";
+import { useAppData } from "../store/AppDataContext";
 
 const chatBubbleImg =
   "https://images.unsplash.com/photo-1662974770404-468fd9660389?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGF0JTIwYnViYmxlJTIwbWVzc2FnZSUyMGNvbG9yZnVsJTIwM2R8ZW58MXx8fHwxNzc4MzE2MjAyfDA&ixlib=rb-4.1.0&q=80&w=400";
@@ -10,26 +9,26 @@ const analyticsImg =
 
 export function HomePage() {
   const navigate = useNavigate();
-  const session = getSession();
-  const currentUser = getAppUserById(session?.id) ?? getAppUserById("u1")!;
+  const { currentUser, chatThreads } = useAppData();
   const savedAvatar = localStorage.getItem(`nv_friend_avatar_${currentUser.id}`) ?? "";
+  const messageCount = chatThreads.reduce((total, thread) => total + thread.messages.length, 0);
   const stats = [
     {
       label: "コネクション",
-      value: String(currentUser.connections),
+      value: String(currentUser.friends.length),
       path: "/chat",
       bg: "linear-gradient(135deg, #FFF0E8 0%, #FFE0C8 100%)",
       icon: null,
       customIcon: (
         <div className="flex flex-col items-center">
           <span style={{ fontSize: "3.5rem", lineHeight: 1 }}>🤝</span>
-          <span style={{ fontSize: "1.8rem", lineHeight: 1, marginTop: -8 }}>❤️</span>
+          <span style={{ fontSize: "1.8rem", lineHeight: 1, marginTop: -8 }}>♡</span>
         </div>
       ),
     },
     {
       label: "メッセージ",
-      value: String(currentUser.messageCount),
+      value: String(messageCount),
       path: "/chat",
       bg: "linear-gradient(135deg, #FFF0E8 0%, #FFE0C8 100%)",
       icon: chatBubbleImg,
@@ -47,27 +46,9 @@ export function HomePage() {
 
   return (
     <Layout>
-      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden">
-        {/* Orange wave at bottom */}
-        <div className="absolute bottom-0 left-0 right-0" style={{ height: "55%" }}>
-          <svg
-            viewBox="0 0 1440 400"
-            xmlns="http://www.w3.org/2000/svg"
-            preserveAspectRatio="none"
-            className="w-full h-full"
-          >
-            <path
-              d="M0,100 C360,20 1080,200 1440,60 L1440,400 L0,400 Z"
-              fill="#F97316"
-            />
-          </svg>
-        </div>
-
-        {/* Content */}
+      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden" style={{ background: "#fff7f2" }}>
         <div className="relative z-10 flex flex-col px-6 pt-6 h-full">
-          {/* Top row: greeting + user card */}
           <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
-            {/* Greeting */}
             <h2
               style={{
                 color: "#1A1A1A",
@@ -75,10 +56,9 @@ export function HomePage() {
                 fontWeight: 700,
               }}
             >
-              おかえり、{currentUser.name}！ 👋
+              おかえり、{currentUser.name}! 👋
             </h2>
 
-            {/* User card */}
             <div
               role="button"
               tabIndex={0}
@@ -94,7 +74,6 @@ export function HomePage() {
                 cursor: "pointer",
               }}
             >
-              {/* Avatar */}
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0 relative"
                 style={{ background: "#F97316" }}
@@ -118,11 +97,10 @@ export function HomePage() {
             </div>
           </div>
 
-          {/* Stat cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-4xl w-full mx-auto">
-            {stats.map((stat, i) => (
+            {stats.map((stat) => (
               <div
-                key={i}
+                key={stat.label}
                 role="button"
                 tabIndex={0}
                 onClick={() => navigate(stat.path)}
@@ -137,24 +115,14 @@ export function HomePage() {
                   cursor: "pointer",
                 }}
               >
-                {/* Illustration */}
-                <div
-                  className="flex-1 flex items-center justify-center overflow-hidden"
-                  style={{ minHeight: 130 }}
-                >
+                <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ minHeight: 130 }}>
                   {stat.customIcon ? (
                     <div className="p-4">{stat.customIcon}</div>
                   ) : stat.icon ? (
-                    <img
-                      src={stat.icon}
-                      alt={stat.label}
-                      className="w-full h-full object-cover"
-                      style={{ maxHeight: 140 }}
-                    />
+                    <img src={stat.icon} alt={stat.label} className="w-full h-full object-cover" style={{ maxHeight: 140 }} />
                   ) : null}
                 </div>
 
-                {/* Label row */}
                 <div
                   className="px-4 py-3 flex items-center justify-between"
                   style={{
@@ -165,7 +133,6 @@ export function HomePage() {
                   <span style={{ fontSize: "1rem", fontWeight: 600, color: "#333" }}>
                     {stat.label}: {stat.value}
                   </span>
-                  {/* Sparkline decoration */}
                   <svg width="50" height="24" viewBox="0 0 50 24">
                     <polyline
                       points="0,18 10,12 20,16 30,6 40,10 50,4"

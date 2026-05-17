@@ -4,6 +4,10 @@ import appData from "./data.json";
 
 const SESSION_KEY = "nv_friend_session";
 
+function notifySessionChanged() {
+  window.dispatchEvent(new Event("nv_friend_session_changed"));
+}
+
 export interface AuthSession {
   id: string;
   role: "user" | "admin";
@@ -33,6 +37,7 @@ export function login(username: string, password: string): AuthSession | null {
   if (!user || (user.role !== "user" && user.role !== "admin")) return null;
   const session: AuthSession = { id: user.id, role: user.role, name: user.name };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  notifySessionChanged();
   return session;
 }
 
@@ -40,6 +45,7 @@ export function quickLogin(role: "user" | "admin"): AuthSession {
   const user = appUsers.find((item) => item.role === role) ?? getUsers().find((item) => item.role === role)!;
   const session: AuthSession = { id: user.id, role: user.role, name: user.name };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  notifySessionChanged();
   return session;
 }
 
@@ -75,4 +81,5 @@ export function registerUser(username: string, password: string): FriendUser {
 
 export function logout() {
   localStorage.removeItem(SESSION_KEY);
+  notifySessionChanged();
 }

@@ -1,8 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { ChevronLeft, ChevronRight, Edit2, Check, Calendar } from "lucide-react";
 import { Layout } from "../components/Layout";
-import { getSession } from "../data/auth";
-import { getAppUserById } from "../data/appData";
+import { useAppData } from "../store/AppDataContext";
 
 type SubPage = "account" | "profile";
 
@@ -66,8 +65,7 @@ function LangTag({ label, editable, onRemove }: { label: string; editable: boole
 }
 
 export function ProfilePage() {
-  const session = getSession();
-  const currentUser = getAppUserById(session?.id) ?? getAppUserById("u1")!;
+  const { currentUser } = useAppData();
   const avatarStorageKey = `nv_friend_avatar_${currentUser.id}`;
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [subPage, setSubPage] = useState<SubPage>("account");
@@ -117,14 +115,7 @@ export function ProfilePage() {
 
   return (
     <Layout>
-      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden">
-        {/* Bottom orange wave */}
-        <div className="absolute bottom-0 left-0 right-0 pointer-events-none" style={{ height: "38%" }}>
-          <svg viewBox="0 0 1440 400" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" className="w-full h-full">
-            <path d="M0,120 C360,40 1080,220 1440,80 L1440,400 L0,400 Z" fill="#F97316" />
-          </svg>
-        </div>
-
+      <div className="relative min-h-[calc(100vh-57px)] overflow-hidden" style={{ background: "#fff7f2" }}>
         <div className="relative z-10 flex justify-center pt-6 px-4 pb-10">
           <div
             className="w-full max-w-2xl rounded-3xl p-6"

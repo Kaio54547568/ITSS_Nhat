@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import {
-  Search, SlidersHorizontal, ChevronLeft, ChevronRight,
+  Search, ChevronLeft, ChevronRight,
   ChevronDown, Eye, Check, X,
 } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
@@ -150,12 +150,6 @@ export function AdminVerificationPage() {
                 />
                 <Search size={14} style={{ color: "#AAAAAA" }} />
               </div>
-              <button
-                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ border: "1.5px solid #F0D5C8", background: "white" }}
-              >
-                <SlidersHorizontal size={15} style={{ color: "#F97316" }} />
-              </button>
             </div>
           </div>
 

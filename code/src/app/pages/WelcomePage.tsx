@@ -5,7 +5,7 @@ export function WelcomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex flex-col" style={{ background: "#FEF0E8" }}>
+    <div className="relative min-h-screen w-full overflow-hidden flex flex-col" style={{ background: "#fff7f2" }}>
       {/* Top content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-32 pt-12 z-10 relative">
         <h1
@@ -39,21 +39,6 @@ export function WelcomePage() {
         >
           気軽に友達を見つけて、自然にコミュニケーション。長く続くつながりを作ろう。
         </p>
-      </div>
-
-      {/* Wave background */}
-      <div className="absolute bottom-0 left-0 right-0" style={{ height: "55%" }}>
-        <svg
-          viewBox="0 0 1440 400"
-          xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none"
-          className="w-full h-full"
-        >
-          <path
-            d="M0,120 C360,30 1080,220 1440,80 L1440,400 L0,400 Z"
-            fill="#F97316"
-          />
-        </svg>
       </div>
 
       {/* Buttons */}
