@@ -11,6 +11,8 @@ Run these files in Supabase SQL Editor in this order:
 
 `seed.sql` resets the seed tables with `truncate ... cascade`, then inserts database-backed demo data used by the React project. User-uploaded images are stored in the public Supabase Storage bucket `pics`; the database stores only the object path.
 
+Demo verified ID-card assets live in `database/assets/pics/demo/id-cards/`. Upload that folder into the public `pics` bucket preserving the same object paths, for example `demo/id-cards/vn-verified-id-card.svg` and `demo/id-cards/jp-verified-id-card.svg`.
+
 `policies.sql` adds development RLS policies so the current frontend can access data with the publishable/anon key.
 
 `realtime.sql` enables Supabase Realtime for chat messages, chat threads, unread counters, notifications, friend requests, friendships, profile online status, and audio call signaling.

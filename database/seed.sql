@@ -164,6 +164,20 @@ update profiles
 set account_status = '利用停止', verification_status = '認証済み', report_count = 3
 where id = 'u19';
 
+update profiles
+set id_card_image = case
+  when country_code = 'JP' then 'demo/id-cards/jp-verified-id-card.svg'
+  else 'demo/id-cards/vn-verified-id-card.svg'
+end
+where role = 'user'
+  and verification_status in ('認証済み', '承認済み');
+
+update profiles
+set id_card_image = null
+where role = 'user'
+  and verification_status not in ('認証済み', '承認済み')
+  and id_card_image like 'demo/id-cards/%';
+
 insert into profile_admin_overrides (id, profile_id, name, email, status, verified, report_count) values
 (1, 'u1', '佐藤 アレックス', 'sato@example.com', '有効', true, 0),
 (2, 'u2', 'グエン リン', 'linh@example.com', '有効', false, 0),
