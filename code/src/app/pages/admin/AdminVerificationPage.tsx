@@ -5,11 +5,26 @@ import {
   ChevronDown, Eye, Check, X,
 } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
-import { mockVerificationRequests, type VerificationRequest } from "../../data/adminMockData";
+import { getPicUrl } from "../../storage/pics";
+import { supabase } from "../../supabase";
+
+interface VerificationRequest {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  birthDate: string;
+  applicationDate: string;
+  verificationStatus: string;
+  avatarEmoji: string;
+  avatarColor: string;
+  idCardImage: string;
+  profileSnapshot: Record<string, unknown> | null;
+}
 
 type VStatus = VerificationRequest["verificationStatus"];
 
-const statusStyle: Record<VStatus, { color: string; bg: string }> = {
+const statusStyle: Record<string, { color: string; bg: string }> = {
   "確認待ち": { color: "#F97316", bg: "#FFF0E8" },
   "認証済み":  { color: "#16A34A", bg: "#DCFCE7" },
   "未認証":    { color: "#DC2626", bg: "#FEE2E2" },
@@ -17,75 +32,45 @@ const statusStyle: Record<VStatus, { color: string; bg: string }> = {
 
 const PAGE_SIZE = 5;
 
-/* ── Document placeholder card ── */
-function DocCard({ label }: { label: string }) {
-  return (
-    <div
-      className="flex-1 rounded-xl overflow-hidden"
-      style={{ border: "1.5px solid #F5DDD0", background: "#FFF8F4", minHeight: 130 }}
-    >
-      <div className="px-3 py-2 border-b" style={{ borderColor: "#F5DDD0" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.82rem", color: "#555" }}>{label}</span>
-      </div>
-      <div className="p-2 flex flex-col gap-2">
-        {[0, 1].map((i) => (
-          <div
-            key={i}
-            className="relative rounded-lg overflow-hidden flex items-center justify-center"
-            style={{ background: "#F0E8E0", height: 60, border: "1px solid #E8D8CC" }}
-          >
-            {/* Mock document lines */}
-            <div className="absolute inset-0 flex flex-col justify-center px-4 gap-1">
-              {[60, 80, 50, 70].map((w, j) => (
-                <div key={j} className="rounded-full" style={{ height: 4, width: `${w}%`, background: "#D4C4B8" }} />
-              ))}
-            </div>
-            <button
-              className="absolute bottom-1 left-1 w-6 h-6 rounded-full flex items-center justify-center z-10"
-              style={{ background: "#F97316" }}
-            >
-              <Eye size={12} style={{ color: "white" }} />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function shortId(id: string) {
+  return id.length > 8 ? `${id.slice(0, 7)}...` : id;
 }
 
-/* ── Video placeholder card ── */
-function VideoCard() {
+function displayVerificationId(request: VerificationRequest) {
+  return request.id.startsWith("verification_") ? request.userId : request.id;
+}
+
+function DocumentImageCard({ imagePath }: { imagePath: string }) {
+  const imageUrl = getPicUrl(imagePath);
   return (
     <div
-      className="flex-1 rounded-xl overflow-hidden"
+      className="rounded-xl overflow-hidden"
       style={{ border: "1.5px solid #F5DDD0", background: "#FFF8F4", minHeight: 130 }}
     >
       <div className="px-3 py-2 border-b" style={{ borderColor: "#F5DDD0" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.82rem", color: "#555" }}>本人確認動画</span>
+        <span style={{ fontWeight: 600, fontSize: "0.82rem", color: "#555" }}>本人確認書類</span>
       </div>
       <div className="p-2">
         <div
           className="relative rounded-lg overflow-hidden flex items-center justify-center"
-          style={{ background: "#E8F0E0", height: 100, border: "1px solid #D4E0CC" }}
+          style={{ background: "#F0E8E0", height: 180, border: "1px solid #E8D8CC" }}
         >
-          {/* Play button */}
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center z-10"
-            style={{ background: "rgba(249,115,22,0.85)" }}
-          >
-            <div style={{ width: 0, height: 0, borderTop: "7px solid transparent", borderBottom: "7px solid transparent", borderLeft: "12px solid white", marginLeft: 3 }} />
-          </div>
-          <div className="absolute inset-0 flex flex-col justify-end p-2 gap-1">
-            {[90, 60].map((w, j) => (
-              <div key={j} className="rounded-full" style={{ height: 3, width: `${w}%`, background: "rgba(255,255,255,0.5)" }} />
-            ))}
-          </div>
-          <button
-            className="absolute bottom-1 left-1 w-6 h-6 rounded-full flex items-center justify-center"
-            style={{ background: "#F97316" }}
-          >
-            <Eye size={12} style={{ color: "white" }} />
-          </button>
+          {imageUrl ? (
+            <>
+              <img src={imageUrl} alt="本人確認書類" className="w-full h-full object-contain" />
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute bottom-2 left-2 w-7 h-7 rounded-full flex items-center justify-center"
+                style={{ background: "#F97316" }}
+              >
+                <Eye size={13} style={{ color: "white" }} />
+              </a>
+            </>
+          ) : (
+            <span style={{ color: "#C78A70", fontSize: "0.84rem", fontWeight: 700 }}>画像なし</span>
+          )}
         </div>
       </div>
     </div>
@@ -94,30 +79,113 @@ function VideoCard() {
 
 export function AdminVerificationPage() {
   const [searchParams] = useSearchParams();
-  const [requests, setRequests] = useState(mockVerificationRequests);
+  const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [query,    setQuery]    = useState("");
   const [page,     setPage]     = useState(1);
-  const [selectedId, setSelectedId] = useState<number>(1);
+  const [selectedId, setSelectedId] = useState<string>("");
+
+  useEffect(() => {
+    void (async () => {
+      const { data, error } = await supabase
+        .from("verification_requests")
+        .select("id, user_id, user_name, email, birth_date, application_date, submitted_at, status, avatar_emoji, avatar_color, id_card_image, profile_snapshot")
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Failed to load verification requests", error);
+        return;
+      }
+      const mapped = (data ?? []).map((request) => ({
+        id: request.id,
+        userId: request.user_id ?? "",
+        name: request.user_name,
+        email: request.email ?? "",
+        birthDate: request.birth_date ?? "",
+        applicationDate: request.application_date ?? request.submitted_at ?? "",
+        verificationStatus: request.status,
+        avatarEmoji: request.avatar_emoji ?? "👤",
+        avatarColor: request.avatar_color ?? "#F97316",
+        idCardImage: request.id_card_image ?? "",
+        profileSnapshot: (request.profile_snapshot as Record<string, unknown> | null) ?? null,
+      }));
+      setRequests(mapped);
+      setSelectedId((current) => current || mapped[0]?.id || "");
+    })();
+  }, []);
 
   /* Auto-select from URL param (coming from user list) */
   useEffect(() => {
     const urlId = searchParams.get("id");
-    if (urlId) {
-      const found = requests.find((r) => r.id === parseInt(urlId));
+    const userId = searchParams.get("user");
+    if (urlId || userId) {
+      const found = requests.find((r) => r.id === urlId || r.userId === userId);
       if (found) setSelectedId(found.id);
     }
-  }, [searchParams]);
+  }, [requests, searchParams]);
 
   const filtered = requests.filter(
-    (r) => r.name.includes(query) || String(r.id).includes(query)
+    (r) =>
+      r.name.includes(query) ||
+      r.email.includes(query) ||
+      r.userId.includes(query) ||
+      r.id.includes(query)
   );
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const selected = requests.find((r) => r.id === selectedId) ?? requests[0];
+  const selectedSnapshot = selected?.profileSnapshot ?? {};
+  const snapshotText = (key: string, fallback = "") => {
+    const value = selectedSnapshot[key];
+    return typeof value === "string" && value.trim() ? value : fallback;
+  };
+  const snapshotList = (key: string) => {
+    const value = selectedSnapshot[key];
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  };
 
-  const updateStatus = (id: number, status: VerificationRequest["verificationStatus"]) => {
+  const updateStatus = (id: string, status: VerificationRequest["verificationStatus"]) => {
     setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, verificationStatus: status } : r)));
+    void (async () => {
+      const request = requests.find((item) => item.id === id);
+      await supabase.from("verification_requests").update({ status }).eq("id", id);
+      if (request?.userId) {
+        const isApproved = status === "認証済み";
+        await supabase
+          .from("profiles")
+          .update({ verification_status: status, account_status: isApproved ? "有効" : "未有効" })
+          .eq("id", request.userId);
+        await supabase
+          .from("profile_admin_overrides")
+          .update({ verified: isApproved, status: isApproved ? "有効" : "未有効" })
+          .eq("profile_id", request.userId);
+        await supabase.from("notifications").insert({
+          id: `notification_verification_${Date.now()}_${request.userId}`,
+          user_id: request.userId,
+          type: "verification",
+          from_user_id: "admin1",
+          message: isApproved ? "アカウント認証が承認されました" : "本人確認が却下されました。プロフィールと本人確認書類を確認してください。",
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+      }
+    })().catch((error) => console.error("Failed to update verification status", error));
+  };
+
+  const lockSelected = () => {
+    if (!selected?.userId) return;
+    void (async () => {
+      await supabase.from("profiles").update({ account_status: "利用停止" }).eq("id", selected.userId);
+      await supabase.from("profile_admin_overrides").update({ status: "利用停止" }).eq("profile_id", selected.userId);
+      await supabase.from("notifications").insert({
+        id: `notification_lock_${Date.now()}_${selected.userId}`,
+        user_id: selected.userId,
+        type: "account_locked",
+        from_user_id: "admin1",
+        message: "管理者によりアカウントが利用停止になりました",
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+    })().catch((error) => console.error("Failed to lock account", error));
   };
 
   return (
@@ -125,7 +193,7 @@ export function AdminVerificationPage() {
       <div className="flex h-[calc(100vh-53px)]">
         {/* ── Left panel ── */}
         <div
-          className="flex flex-col w-80 flex-shrink-0 h-full"
+          className="flex flex-col w-[420px] flex-shrink-0 h-full"
           style={{ borderRight: "1.5px solid #F5DDD0", background: "white" }}
         >
           {/* Panel title */}
@@ -142,10 +210,10 @@ export function AdminVerificationPage() {
               >
                 <input
                   type="text"
-                  placeholder="ユーザーIDで検索"
+                  placeholder="ユーザーID・氏名で検索"
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-                  className="flex-1 bg-transparent outline-none text-sm"
+                  className="flex-1 bg-transparent outline-none text-sm min-w-0"
                   style={{ color: "#555" }}
                 />
                 <Search size={14} style={{ color: "#AAAAAA" }} />
@@ -157,7 +225,7 @@ export function AdminVerificationPage() {
           <div
             className="grid px-4 py-2 text-xs"
             style={{
-              gridTemplateColumns: "40px 1fr 90px 80px",
+              gridTemplateColumns: "64px minmax(120px,1fr) 90px 90px",
               background: "#FFF8F4",
               borderTop: "1px solid #F5DDD0",
               borderBottom: "1px solid #F5DDD0",
@@ -174,7 +242,7 @@ export function AdminVerificationPage() {
           {/* Rows */}
           <div className="flex-1 overflow-y-auto">
             {paged.map((r) => {
-              const st = statusStyle[r.verificationStatus];
+              const st = statusStyle[r.verificationStatus] ?? { color: "#F97316", bg: "#FFF0E8" };
               const isSelected = r.id === selectedId;
               return (
                 <div
@@ -182,13 +250,15 @@ export function AdminVerificationPage() {
                   onClick={() => setSelectedId(r.id)}
                   className="grid items-center px-4 py-3 cursor-pointer transition-colors"
                   style={{
-                    gridTemplateColumns: "40px 1fr 90px 80px",
+                    gridTemplateColumns: "64px minmax(120px,1fr) 90px 90px",
                     borderBottom: "1px solid #F5DDD0",
                     background: isSelected ? "#FEF0E8" : "white",
                   }}
                 >
-                  <span style={{ color: "#888", fontSize: "0.85rem" }}>{r.id}</span>
-                  <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: "0.88rem", color: isSelected ? "#F97316" : "#1A1A1A" }}>
+                  <span className="truncate min-w-0" title={r.id} style={{ color: "#888", fontSize: "0.85rem" }}>
+                    {shortId(displayVerificationId(r))}
+                  </span>
+                  <span className="truncate min-w-0" title={r.name} style={{ fontWeight: isSelected ? 700 : 500, fontSize: "0.88rem", color: isSelected ? "#F97316" : "#1A1A1A" }}>
                     {r.name}
                   </span>
                   <span style={{ fontSize: "0.78rem", color: "#888" }}>
@@ -251,18 +321,46 @@ export function AdminVerificationPage() {
               <div className="flex flex-col gap-1">
                 <span style={{ fontWeight: 700, fontSize: "1.1rem", color: "#1A1A1A" }}>{selected.name}</span>
                 <span style={{ fontSize: "0.85rem", color: "#555" }}>
-                  メールアドレス: <span style={{ color: "#3B82F6" }}>{selected.email}</span>
+                  メールアドレス: <span style={{ color: "#3B82F6" }}>{snapshotText("email", selected.email)}</span>
                 </span>
                 <span style={{ fontSize: "0.85rem", color: "#555" }}>
-                  生年月日: {selected.birthDate}
+                  生年月日: {snapshotText("birthDate", selected.birthDate)}
                 </span>
               </div>
             </div>
 
-            {/* Documents + Video row */}
-            <div className="flex gap-4 mb-6">
-              <DocCard label="本人確認書類" />
-              <VideoCard />
+            <div
+              className="rounded-2xl p-4 mb-5"
+              style={{ background: "white", border: "1.5px solid #F5DDD0" }}
+            >
+              <h4 style={{ color: "#F97316", fontWeight: 700, fontSize: "0.95rem", marginBottom: 12 }}>
+                申請時プロフィール情報
+              </h4>
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                {[
+                  ["氏名", snapshotText("name", selected.name)],
+                  ["電話", snapshotText("phone")],
+                  ["メール", snapshotText("email", selected.email)],
+                  ["所在地", snapshotText("address")],
+                  ["生年月日", snapshotText("birthDate", selected.birthDate)],
+                  ["性別", snapshotText("gender")],
+                  ["自己紹介", snapshotText("bio")],
+                  ["言語", snapshotList("languages").join("、")],
+                  ["興味", snapshotList("interests").join("、")],
+                  ["性格", snapshotList("personality").join("、")],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl px-3 py-2" style={{ background: "#FFF8F4", border: "1px solid #F5DDD0" }}>
+                    <div style={{ color: "#888", fontSize: "0.75rem", fontWeight: 700 }}>{label}</div>
+                    <div style={{ color: value ? "#1A1A1A" : "#AAAAAA", fontSize: "0.88rem", marginTop: 3 }}>
+                      {value || "未設定"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <DocumentImageCard imagePath={selected.idCardImage} />
             </div>
 
             {/* Action buttons */}
@@ -280,6 +378,13 @@ export function AdminVerificationPage() {
                 style={{ background: "#EF4444", color: "white", fontWeight: 700, fontSize: "1rem" }}
               >
                 <X size={18} /> 却下
+              </button>
+              <button
+                onClick={lockSelected}
+                className="flex-1 py-3 rounded-full flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "#111827", color: "white", fontWeight: 700, fontSize: "1rem" }}
+              >
+                利用停止
               </button>
             </div>
           </div>

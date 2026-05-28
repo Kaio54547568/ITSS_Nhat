@@ -30,8 +30,7 @@ export function UserDetailPage() {
           </button>
 
           <div className="rounded-3xl p-6" style={{ background: "white", border: "2px solid #F5DDD0", boxShadow: "0 4px 24px rgba(249,115,22,0.08)" }}>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-6">
-              <div>
+            <div>
                 <div className="flex items-center gap-4 mb-5">
                   <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl relative" style={{ background: user.avatarColor, border: "7px solid #F97316" }}>
                     {user.avatarEmoji}
@@ -95,21 +94,6 @@ export function UserDetailPage() {
                     通報
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <h4 style={{ fontWeight: 700, color: "#1A1A1A", marginBottom: 10 }}>ギャラリー</h4>
-                <div className="rounded-xl mb-2 flex items-center justify-center text-center px-4" style={{ height: 100, background: "linear-gradient(135deg, #FFB26B, #F97316)", color: "white", fontWeight: 700 }}>
-                  {user.gallery[0] ?? "写真"}
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {user.gallery.slice(0, 3).map((item, index) => (
-                    <div key={item} className="rounded-lg flex items-center justify-center text-center px-1" style={{ height: 62, background: index === 2 ? "#555" : "linear-gradient(135deg, #FFE0C8, #F97316)", color: "white", border: "3px solid #F97316", fontWeight: 700, fontSize: "0.8rem" }}>
-                      {index === 2 ? "+3" : item}
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>

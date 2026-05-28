@@ -1,14 +1,24 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, MapPin, User } from "lucide-react";
+import { ChevronDown, MapPin, User } from "lucide-react";
 import { Layout } from "../components/Layout";
+import { ProfilePreviewModal } from "../components/ProfilePreviewModal";
 import { useAppData, type AppUser } from "../store/AppDataContext";
 
 export function SearchPage() {
   const [ageFrom, setAgeFrom] = useState("");
   const [ageTo, setAgeTo] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<"" | "VN" | "JP">("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
-  const { currentUser, filterUsers, sendFriendRequest, getFriendshipStatus } = useAppData();
+  const {
+    currentUser,
+    friendRequests,
+    filterUsers,
+    sendFriendRequest,
+    acceptFriendRequest,
+    skipFriendRequest,
+    getFriendshipStatus,
+  } = useAppData();
 
   const interestFilters = useMemo(() => Array.from(new Set(currentUser.interests)), [currentUser.interests]);
   const minAge = ageFrom.trim() === "" ? undefined : Number(ageFrom);
@@ -16,6 +26,7 @@ export function SearchPage() {
   const filtered = filterUsers({
     minAge: Number.isFinite(minAge) ? minAge : undefined,
     maxAge: Number.isFinite(maxAge) ? maxAge : undefined,
+    selectedCountry,
     selectedInterests,
   });
 
@@ -33,28 +44,63 @@ export function SearchPage() {
     return { label: "友達申請", disabled: false, background: "#F97316" };
   };
 
+  const getIncomingRequestId = (userId: string) =>
+    friendRequests.find(
+      (request) =>
+        request.status === "pending" &&
+        request.fromUserId === userId &&
+        request.toUserId === currentUser.id,
+    )?.id;
+
   return (
     <Layout>
       <div className="min-h-[calc(100vh-57px)] overflow-y-auto" style={{ background: "#fff7f2" }}>
         <div className="px-4 pt-5 pb-12 max-w-3xl mx-auto">
           <div className="flex items-center gap-2 flex-wrap mb-3 px-3 py-2.5 rounded-2xl" style={{ background: "white", border: "1.5px solid #F5DDD0" }}>
-            <input
-              type="number"
-              placeholder="年齢の始め"
-              value={ageFrom}
-              onChange={(event) => setAgeFrom(event.target.value)}
-              className="w-28 px-3 py-1.5 rounded-full text-sm outline-none"
-              style={{ border: "1.5px solid #F0D5C8", color: "#555" }}
-            />
-            <span style={{ color: "#555", fontSize: "0.9rem" }}>から</span>
-            <input
-              type="number"
-              placeholder="年齢の終わり"
-              value={ageTo}
-              onChange={(event) => setAgeTo(event.target.value)}
-              className="w-32 px-3 py-1.5 rounded-full text-sm outline-none"
-              style={{ border: "1.5px solid #F0D5C8", color: "#555" }}
-            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="number"
+                placeholder="年齢の始め"
+                value={ageFrom}
+                onChange={(event) => setAgeFrom(event.target.value)}
+                className="w-28 px-3 py-1.5 rounded-full text-sm outline-none"
+                style={{ border: "1.5px solid #F0D5C8", color: "#555" }}
+              />
+              <span style={{ color: "#555", fontSize: "0.9rem" }}>から</span>
+              <input
+                type="number"
+                placeholder="年齢の終わり"
+                value={ageTo}
+                onChange={(event) => setAgeTo(event.target.value)}
+                className="w-32 px-3 py-1.5 rounded-full text-sm outline-none"
+                style={{ border: "1.5px solid #F0D5C8", color: "#555" }}
+              />
+            </div>
+
+            <div className="relative ml-auto">
+              <select
+                value={selectedCountry}
+                onChange={(event) => setSelectedCountry(event.target.value as "" | "VN" | "JP")}
+                className="appearance-none rounded-full pl-4 pr-9 py-1.5 text-sm outline-none"
+                style={{
+                  background: selectedCountry ? "#FFF0E8" : "white",
+                  border: `1.5px solid ${selectedCountry ? "#F97316" : "#F0D5C8"}`,
+                  color: selectedCountry ? "#E8641A" : "#555",
+                  fontWeight: selectedCountry ? 600 : 400,
+                  minWidth: 130,
+                }}
+                aria-label="国で絞り込み"
+              >
+                <option value="">すべての国</option>
+                <option value="VN">ベトナム</option>
+                <option value="JP">日本</option>
+              </select>
+              <ChevronDown
+                size={15}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: selectedCountry ? "#F97316" : "#AAAAAA" }}
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -108,6 +154,7 @@ export function SearchPage() {
             ) : (
               filtered.map((user) => {
                 const requestButton = getRequestButton(user.id);
+                const incomingRequestId = getIncomingRequestId(user.id);
                 return (
                   <div
                     key={user.id}
@@ -135,19 +182,48 @@ export function SearchPage() {
                     </div>
 
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => sendFriendRequest(user.id)}
-                        disabled={requestButton.disabled}
-                        className="px-4 py-2 rounded-full transition-all duration-150 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed"
-                        style={{
-                          background: requestButton.background,
-                          color: "white",
-                          fontSize: "0.9rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {requestButton.label}
-                      </button>
+                      {incomingRequestId ? (
+                        <>
+                          <button
+                            onClick={() => acceptFriendRequest(incomingRequestId)}
+                            className="px-4 py-2 rounded-full transition-all duration-150 hover:opacity-90 active:scale-95"
+                            style={{
+                              background: "#22C55E",
+                              color: "white",
+                              fontSize: "0.9rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✓ 承認
+                          </button>
+                          <button
+                            onClick={() => skipFriendRequest(incomingRequestId)}
+                            className="px-4 py-2 rounded-full transition-all duration-150 hover:opacity-90 active:scale-95"
+                            style={{
+                              background: "#F97316",
+                              color: "white",
+                              fontSize: "0.9rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            拒否
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => sendFriendRequest(user.id)}
+                          disabled={requestButton.disabled}
+                          className="px-4 py-2 rounded-full transition-all duration-150 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed"
+                          style={{
+                            background: requestButton.background,
+                            color: "white",
+                            fontSize: "0.9rem",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {requestButton.label}
+                        </button>
+                      )}
                       <button
                         onClick={() => setSelectedUser(user)}
                         className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:bg-orange-50"
@@ -164,94 +240,7 @@ export function SearchPage() {
           </div>
         </div>
 
-        {selectedUser && (
-          <div
-            className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6"
-            style={{ background: "rgba(0,0,0,0.35)" }}
-            onClick={() => setSelectedUser(null)}
-          >
-            <div
-              className="relative w-full max-w-3xl rounded-2xl p-6"
-              style={{ background: "white", border: "2px solid #F5DDD0", boxShadow: "0 24px 70px rgba(0,0,0,0.22)" }}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="absolute right-4 top-4 w-10 h-10 rounded-full flex items-center justify-center transition-all hover:opacity-80 active:scale-95"
-                style={{ border: "2px solid #F97316", color: "#F97316", background: "white" }}
-                aria-label="プロフィールを閉じる"
-              >
-                <ArrowLeft size={22} />
-              </button>
-
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-6">
-                <div>
-                  <div className="flex items-center gap-4 mb-5">
-                    <div className="w-20 h-20 rounded-full flex items-center justify-center text-4xl flex-shrink-0" style={{ background: selectedUser.avatarColor, border: "7px solid #F97316" }}>
-                      {selectedUser.avatarEmoji}
-                    </div>
-                    <div>
-                      <h3 style={{ fontWeight: 700, fontSize: "1.3rem", color: "#1A1A1A", marginBottom: 6 }}>{selectedUser.name}</h3>
-                      <div className="flex items-center gap-1" style={{ color: "#F97316", fontSize: "0.9rem" }}>
-                        <MapPin size={14} />
-                        <span>{selectedUser.address}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-4">
-                      <span className="w-16" style={{ fontWeight: 700, color: "#1A1A1A" }}>年齢:</span>
-                      <strong>{selectedUser.age}</strong>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <span className="w-16" style={{ fontWeight: 700, color: "#1A1A1A" }}>言語:</span>
-                      <strong>{selectedUser.languages.join(" / ")}</strong>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <span className="w-16 pt-2" style={{ fontWeight: 700, color: "#1A1A1A" }}>興味:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedUser.interests.map((item) => (
-                          <span key={item} className="px-4 py-2 rounded-xl" style={{ background: "#E5E5E5", color: "#1A1A1A", fontWeight: 700, fontSize: "0.86rem" }}>
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <span className="w-16 pt-2" style={{ fontWeight: 700, color: "#1A1A1A" }}>性格:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedUser.personality.map((item) => (
-                          <span key={item} className="px-4 py-2 rounded-xl" style={{ background: "#F97316", color: "white", fontWeight: 700, fontSize: "0.86rem" }}>
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 style={{ fontWeight: 700, color: "#1A1A1A", marginBottom: 10 }}>ギャラリー</h4>
-                  <div className="rounded-xl mb-2 flex items-center justify-center text-center px-4" style={{ height: 100, background: "linear-gradient(135deg, #FFB26B, #F97316)", color: "white", fontWeight: 700 }}>
-                    {selectedUser.gallery[0] ?? "写真"}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {selectedUser.gallery.slice(0, 3).map((item, index) => (
-                      <div
-                        key={item}
-                        className="rounded-lg flex items-center justify-center text-center px-1"
-                        style={{ height: 62, background: index === 2 ? "#555" : "linear-gradient(135deg, #FFE0C8, #F97316)", color: "white", border: "3px solid #F97316", fontWeight: 700, fontSize: "0.8rem" }}
-                      >
-                        {index === 2 ? "+3" : item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {selectedUser && <ProfilePreviewModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
       </div>
     </Layout>
   );

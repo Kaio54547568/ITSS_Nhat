@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
 import { Layout } from "../components/Layout";
+import { getPicUrl } from "../storage/pics";
 import { useAppData } from "../store/AppDataContext";
 
 const chatBubbleImg =
@@ -10,7 +11,7 @@ const analyticsImg =
 export function HomePage() {
   const navigate = useNavigate();
   const { currentUser, chatThreads } = useAppData();
-  const savedAvatar = localStorage.getItem(`nv_friend_avatar_${currentUser.id}`) ?? "";
+  const savedAvatar = getPicUrl(currentUser.avatarPath);
   const messageCount = chatThreads.reduce((total, thread) => total + thread.messages.length, 0);
   const stats = [
     {
@@ -20,9 +21,9 @@ export function HomePage() {
       bg: "linear-gradient(135deg, #FFF0E8 0%, #FFE0C8 100%)",
       icon: null,
       customIcon: (
-        <div className="flex flex-col items-center">
-          <span style={{ fontSize: "3.5rem", lineHeight: 1 }}>🤝</span>
-          <span style={{ fontSize: "1.8rem", lineHeight: 1, marginTop: -8 }}>♡</span>
+        <div className="flex flex-col items-center justify-center">
+          <span style={{ fontSize: "4.3rem", lineHeight: 0.95 }}>🤝</span>
+          <span style={{ fontSize: "2.1rem", lineHeight: 1, marginTop: -10 }}>💖</span>
         </div>
       ),
     },
@@ -47,8 +48,8 @@ export function HomePage() {
   return (
     <Layout>
       <div className="relative min-h-[calc(100vh-57px)] overflow-hidden" style={{ background: "#fff7f2" }}>
-        <div className="relative z-10 flex flex-col px-6 pt-6 h-full">
-          <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
+        <div className="relative z-10 flex min-h-[calc(100vh-57px)] flex-col px-6 pt-6 pb-8">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <h2
               style={{
                 color: "#1A1A1A",
@@ -97,55 +98,57 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-4xl w-full mx-auto">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(stat.path)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") navigate(stat.path);
-                }}
-                className="rounded-2xl overflow-hidden shadow-sm flex flex-col transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
-                style={{
-                  background: stat.bg,
-                  border: "2px solid rgba(249,115,22,0.2)",
-                  minHeight: 200,
-                  cursor: "pointer",
-                }}
-              >
-                <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ minHeight: 130 }}>
-                  {stat.customIcon ? (
-                    <div className="p-4">{stat.customIcon}</div>
-                  ) : stat.icon ? (
-                    <img src={stat.icon} alt={stat.label} className="w-full h-full object-cover" style={{ maxHeight: 140 }} />
-                  ) : null}
-                </div>
-
+          <div className="flex flex-1 items-center justify-center py-8">
+            <div className="grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+              {stats.map((stat) => (
                 <div
-                  className="px-4 py-3 flex items-center justify-between"
+                  key={stat.label}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(stat.path)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") navigate(stat.path);
+                  }}
+                  className="rounded-2xl overflow-hidden shadow-sm flex flex-col transition-all duration-150 hover:opacity-95 active:scale-[0.99]"
                   style={{
-                    borderTop: "1.5px solid rgba(249,115,22,0.15)",
-                    background: "rgba(255,255,255,0.6)",
+                    background: stat.bg,
+                    border: "2px solid rgba(249,115,22,0.28)",
+                    minHeight: 250,
+                    cursor: "pointer",
                   }}
                 >
-                  <span style={{ fontSize: "1rem", fontWeight: 600, color: "#333" }}>
-                    {stat.label}: {stat.value}
-                  </span>
-                  <svg width="50" height="24" viewBox="0 0 50 24">
-                    <polyline
-                      points="0,18 10,12 20,16 30,6 40,10 50,4"
-                      fill="none"
-                      stroke="#F97316"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ minHeight: 178 }}>
+                    {stat.customIcon ? (
+                      <div className="p-5">{stat.customIcon}</div>
+                    ) : stat.icon ? (
+                      <img src={stat.icon} alt={stat.label} className="w-full h-full object-cover" style={{ minHeight: 178 }} />
+                    ) : null}
+                  </div>
+
+                  <div
+                    className="px-5 py-4 flex items-center justify-between"
+                    style={{
+                      borderTop: "1.5px solid rgba(249,115,22,0.15)",
+                      background: "rgba(255,255,255,0.68)",
+                    }}
+                  >
+                    <span style={{ fontSize: "1.08rem", fontWeight: 700, color: "#333" }}>
+                      {stat.label}: {stat.value}
+                    </span>
+                    <svg width="58" height="28" viewBox="0 0 58 28">
+                      <polyline
+                        points="0,21 12,14 23,18 35,7 46,11 58,4"
+                        fill="none"
+                        stroke="#F97316"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

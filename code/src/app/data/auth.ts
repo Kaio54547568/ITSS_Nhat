@@ -1,6 +1,4 @@
-import { FriendUser, getUsers, saveUsers } from "./users";
-import { appUsers } from "./appData";
-import appData from "./data.json";
+import { supabase } from "../supabase";
 
 const SESSION_KEY = "nv_friend_session";
 
@@ -14,9 +12,16 @@ export interface AuthSession {
   name: string;
 }
 
+export interface RegisteredUser {
+  id: string;
+  name: string;
+  username: string;
+  password: string;
+  role: "user";
+}
+
 export function getRedirectPathByRole(role: AuthSession["role"]) {
-  const account = appData.demoAccounts.find((item) => item.role === role);
-  return account?.redirectAfterLogin ?? (role === "admin" ? "/admin/users" : "/home");
+  return role === "admin" ? "/admin/users" : "/home";
 }
 
 export function getSession(): AuthSession | null {
@@ -29,54 +34,111 @@ export function getSession(): AuthSession | null {
   }
 }
 
-export function login(username: string, password: string): AuthSession | null {
-  const dataUser = appUsers.find((item) => item.username === username && item.password === password);
-  const localUser = getUsers().find((item) => item.username === username && item.password === password);
-  const user = dataUser ?? localUser;
-
-  if (!user || (user.role !== "user" && user.role !== "admin")) return null;
-  const session: AuthSession = { id: user.id, role: user.role, name: user.name };
+function saveSession(session: AuthSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   notifySessionChanged();
-  return session;
 }
 
-export function quickLogin(role: "user" | "admin"): AuthSession {
-  const user = appUsers.find((item) => item.role === role) ?? getUsers().find((item) => item.role === role)!;
-  const session: AuthSession = { id: user.id, role: user.role, name: user.name };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  notifySessionChanged();
-  return session;
-}
+export async function login(username: string, password: string): Promise<AuthSession | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, role, name, account_status")
+    .eq("username", username)
+    .eq("password", password)
+    .maybeSingle();
 
-export function registerUser(username: string, password: string): FriendUser {
-  const users = getUsers();
-  const newUser: FriendUser = {
-    id: `u${Date.now()}`,
-    name: username,
-    username,
-    password,
-    role: "user",
-    nationality: "ベトナム",
-    age: 20,
-    gender: "",
-    phone: "",
-    email: "",
-    address: "ハノイ",
-    birthDate: "",
-    avatar: username.slice(0, 1).toUpperCase(),
-    languages: ["ベトナム語", "日本語"],
-    interests: ["日本語", "勉強"],
-    personality: ["努力家"],
-    bio: "プロフィールを編集中です。",
-    matchRate: 76,
-    online: true,
-    reportCount: 0,
-    verificationStatus: "確認待ち",
-    status: "有効",
+  if (error) {
+    console.error("Login failed", error);
+    return null;
+  }
+
+  if (!data || (data.role !== "user" && data.role !== "admin")) return null;
+  if (data.role === "user" && data.account_status === "利用停止") return null;
+
+  const session: AuthSession = {
+    id: data.id,
+    role: data.role,
+    name: data.name ?? username,
   };
-  saveUsers([...users, newUser]);
-  return newUser;
+  saveSession(session);
+  return session;
+}
+
+export async function quickLogin(role: "user" | "admin"): Promise<AuthSession> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, role, name, account_status")
+    .eq("role", role)
+    .neq("account_status", "利用停止")
+    .order("profile_id", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (error || !data || (data.role !== "user" && data.role !== "admin")) {
+    throw error ?? new Error(`No ${role} profile found`);
+  }
+
+  const session: AuthSession = {
+    id: data.id,
+    role: data.role,
+    name: data.name ?? role,
+  };
+  saveSession(session);
+  return session;
+}
+
+export async function registerUser(username: string, password: string): Promise<RegisteredUser> {
+  const id = `u${Date.now()}`;
+  const name = username;
+  const profileId = Math.floor(Date.now() % 1_000_000_000);
+  const { data, error } = await supabase
+    .from("profiles")
+    .insert({
+      id,
+      profile_id: profileId,
+      name,
+      username,
+      password,
+      role: "user",
+      nationality: "ベトナム",
+      country_code: "VN",
+      age: 20,
+      gender: "",
+      phone: "",
+      email: null,
+      address: "ハノイ",
+      birth_date: "",
+      avatar: username.slice(0, 1).toUpperCase(),
+      avatar_color: "#F97316",
+      avatar_emoji: username.slice(0, 1).toUpperCase(),
+      online: false,
+      account_status: "未有効",
+      languages: [],
+      interests: [],
+      personality: [],
+      gallery: [],
+      bio: "",
+      match_rate: 76,
+      connections: 0,
+      message_count: 0,
+      unread: 0,
+      report_count: 0,
+      verification_status: "未申請",
+    })
+    .select("id, name, username, password, role")
+    .single();
+
+  if (error) throw error;
+  await supabase.from("profile_admin_overrides").insert({
+    id: profileId,
+    profile_id: id,
+    name,
+    email: "",
+    status: "未有効",
+    verified: false,
+    report_count: 0,
+  });
+  return data as RegisteredUser;
 }
 
 export function logout() {

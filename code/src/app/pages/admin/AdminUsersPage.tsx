@@ -1,8 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, X, Lock } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
-import { mockAdminUsers, type AdminUser } from "../../data/adminMockData";
+import { supabase } from "../../supabase";
+
+interface AdminUser {
+  id: number;
+  profileId: string;
+  name: string;
+  email: string;
+  status: string;
+  verified: boolean;
+  reportCount: number;
+}
 
 type SortKey = "id" | "name" | "reportCount";
 type SortDir = "asc" | "desc";
@@ -17,17 +27,48 @@ function rowBg(u: AdminUser) {
 
 export function AdminUsersPage() {
   const navigate = useNavigate();
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [query,   setQuery]   = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page,    setPage]    = useState(1);
+
+  useEffect(() => {
+    void (async () => {
+      const { data, error } = await supabase
+        .from("profile_admin_overrides")
+        .select("id, profile_id, name, email, status, verified, report_count")
+        .order("id", { ascending: true });
+      if (error) {
+        console.error("Failed to load admin users", error);
+        return;
+      }
+      setUsers(
+        (data ?? []).map((user) => ({
+          id: user.id,
+          profileId: user.profile_id ?? "",
+          name: user.name,
+          email: user.email,
+          status: user.status,
+          verified: user.verified,
+          reportCount: user.report_count,
+        })),
+      );
+    })();
+  }, []);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const filtered = mockAdminUsers
+  const lockUser = (user: AdminUser) => {
+    setUsers((prev) => prev.map((item) => (item.id === user.id ? { ...item, status: "利用停止" } : item)));
+    void supabase.from("profiles").update({ account_status: "利用停止" }).eq("id", user.profileId);
+    void supabase.from("profile_admin_overrides").update({ status: "利用停止" }).eq("id", user.id);
+  };
+
+  const filtered = users
     .filter((u) =>
       u.name.includes(query) ||
       u.email.includes(query) ||
@@ -87,7 +128,7 @@ export function AdminUsersPage() {
           <div
             className="grid text-sm"
             style={{
-              gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px",
+              gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px 88px",
               background: "#FFF8F4",
               borderBottom: "1.5px solid #F5DDD0",
               padding: "10px 16px",
@@ -107,16 +148,17 @@ export function AdminUsersPage() {
             <button className="flex items-center gap-1 justify-end" onClick={() => handleSort("reportCount")}>
               通報件数 <SortIcon col="reportCount" />
             </button>
+            <span className="text-right">操作</span>
           </div>
 
           {/* Rows */}
           {paged.map((u) => (
             <div
               key={u.id}
-              onClick={() => navigate(`/admin/verification?id=${u.id}`)}
+              onClick={() => navigate(`/admin/verification?user=${u.profileId || u.id}`)}
               className="grid items-center cursor-pointer hover:brightness-95 transition-all"
               style={{
-                gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px",
+                gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px 88px",
                 background: rowBg(u),
                 borderBottom: "1px solid #F5DDD0",
                 padding: "11px 16px",
@@ -171,6 +213,24 @@ export function AdminUsersPage() {
               >
                 {u.reportCount}
               </span>
+
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  lockUser(u);
+                }}
+                disabled={u.status === "利用停止" || !u.profileId}
+                className="justify-self-end inline-flex items-center gap-1 px-3 py-1.5 rounded-full transition-all hover:opacity-90 disabled:cursor-not-allowed"
+                style={{
+                  background: u.status === "利用停止" ? "#FEE2E2" : "#EF4444",
+                  color: u.status === "利用停止" ? "#DC2626" : "white",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                }}
+              >
+                <Lock size={12} /> 凍結
+              </button>
             </div>
           ))}
         </div>

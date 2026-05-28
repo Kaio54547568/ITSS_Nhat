@@ -2,15 +2,16 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { CharacterLeft, CharacterRight } from "../components/Characters";
 import { login, registerUser } from "../data/auth";
-import { getUsers } from "../data/users";
+import { supabase } from "../supabase";
 
 export function SignUpPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string; form?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!username.trim()) nextErrors.username = "ユーザー名を入力してください。";
@@ -21,17 +22,33 @@ export function SignUpPage() {
       return;
     }
 
-    if (getUsers().some((user) => user.username === username.trim())) {
+    setIsSubmitting(true);
+    const { data: existingUser, error: lookupError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username.trim())
+      .maybeSingle();
+
+    if (lookupError) {
+      setIsSubmitting(false);
+      setErrors({ form: "登録に失敗しました。もう一度お試しください。" });
+      return;
+    }
+
+    if (existingUser) {
+      setIsSubmitting(false);
       setErrors({ form: "登録に失敗しました。このユーザー名はすでに使われています。" });
       return;
     }
 
     try {
-      registerUser(username.trim(), password);
-      login(username.trim(), password);
-      navigate("/home");
+      await registerUser(username.trim(), password);
+      await login(username.trim(), password);
+      navigate("/profile");
     } catch {
       setErrors({ form: "登録に失敗しました。もう一度お試しください。" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -150,6 +167,7 @@ export function SignUpPage() {
           {/* Sign up button */}
           <button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="w-full rounded-full py-3 transition-all duration-200 hover:opacity-90 active:scale-95"
             style={{
               background: "#F97316",
@@ -158,7 +176,7 @@ export function SignUpPage() {
               fontWeight: 700,
             }}
           >
-            Sign up
+            {isSubmitting ? "Signing up..." : "Sign up"}
           </button>
 
           {/* Login link */}

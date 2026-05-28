@@ -10,29 +10,41 @@ interface ContactsListProps {
 export function ContactsList({ activeId }: ContactsListProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const { currentUser, chatThreads, getUserById, markThreadRead } = useAppData();
+  const { currentUser, chatThreads, getUserById, getFriendshipStatus, markThreadRead } = useAppData();
 
-  const contacts = useMemo(
-    () =>
-      chatThreads
-        .map((thread) => {
-          const otherId = thread.participantIds.find((id) => id !== currentUser.id);
-          const user = getUserById(otherId);
-          if (!user) return null;
-          const lastMessageTime = thread.messages.at(-1)?.createdAt;
-          return {
-            thread,
-            user,
-            unread: thread.unreadCountByUserId[currentUser.id] ?? 0,
-            time: lastMessageTime
-              ? new Date(lastMessageTime).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
-              : "",
-          };
-        })
-        .filter((item): item is NonNullable<typeof item> => Boolean(item))
-        .filter((item) => item.user.name.includes(search) || item.thread.lastMessage.includes(search)),
-    [chatThreads, currentUser.id, getUserById, search],
-  );
+  const contacts = useMemo(() => {
+    const contactsByUserId = new Map<
+      string,
+      {
+        thread: (typeof chatThreads)[number];
+        user: NonNullable<ReturnType<typeof getUserById>>;
+        unread: number;
+        time: string;
+      }
+    >();
+
+    for (const thread of chatThreads) {
+      const otherId = thread.participantIds.find((id) => id !== currentUser.id);
+      const user = getUserById(otherId);
+      if (!user || getFriendshipStatus(user.id) !== "friend") continue;
+
+      const lastMessageTime = thread.messages.at(-1)?.createdAt;
+      if (!contactsByUserId.has(user.id)) {
+        contactsByUserId.set(user.id, {
+          thread,
+          user,
+          unread: thread.unreadCountByUserId[currentUser.id] ?? 0,
+          time: lastMessageTime
+            ? new Date(lastMessageTime).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
+            : "",
+        });
+      }
+    }
+
+    return Array.from(contactsByUserId.values()).filter(
+      (item) => item.user.name.includes(search) || item.thread.lastMessage.includes(search),
+    );
+  }, [chatThreads, currentUser.id, getFriendshipStatus, getUserById, search]);
 
   return (
     <div

@@ -7,9 +7,10 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ username?: string; password?: string; form?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextErrors: typeof errors = {};
     if (!username.trim()) nextErrors.username = "ユーザー名を入力してください。";
@@ -20,7 +21,9 @@ export function LoginPage() {
       return;
     }
 
-    const session = login(username.trim(), password);
+    setIsSubmitting(true);
+    const session = await login(username.trim(), password);
+    setIsSubmitting(false);
     if (!session) {
       setErrors({ form: "ログイン情報が正しくありません。" });
       return;
@@ -144,6 +147,7 @@ export function LoginPage() {
           {/* Log in button */}
           <button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="w-full rounded-full py-3 transition-all duration-200 hover:opacity-90 active:scale-95"
             style={{
               background: "#F97316",
@@ -152,7 +156,7 @@ export function LoginPage() {
               fontWeight: 700,
             }}
           >
-            Log In
+            {isSubmitting ? "Logging in..." : "Log In"}
           </button>
 
           {/* Sign up link */}
