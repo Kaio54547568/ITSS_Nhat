@@ -42,6 +42,69 @@ function FieldRow({
   );
 }
 
+function BirthDateInput({
+  value,
+  onChange,
+  editable,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  editable: boolean;
+}) {
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="relative flex-1">
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={!editable}
+        className="absolute inset-0 opacity-0 pointer-events-none"
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+      <div
+        className="flex items-center gap-1.5 rounded-full px-3 py-1.5"
+        style={{
+          background: editable ? "#FFF8F4" : "#F2F2F2",
+          border: `1.5px solid ${editable ? "#F97316" : "#E0D5CF"}`,
+        }}
+      >
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="YYYY-MM-DD"
+          value={value}
+          onChange={(event) => {
+            const cleaned = event.target.value.replace(/[^\d-]/g, "").slice(0, 10);
+            onChange(cleaned);
+          }}
+          disabled={!editable}
+          className="flex-1 bg-transparent outline-none"
+          style={{ color: editable ? "#333" : "#888", fontSize: "0.88rem" }}
+        />
+        <button
+          type="button"
+          disabled={!editable}
+          onClick={() => {
+            const picker = dateInputRef.current;
+            if (!picker) return;
+            if ("showPicker" in picker) picker.showPicker();
+            else picker.click();
+          }}
+          className="ml-auto w-8 h-8 rounded-full flex items-center justify-center transition-all hover:opacity-80 disabled:cursor-not-allowed"
+          style={{ color: "#AAAAAA" }}
+          aria-label="生年月日をカレンダーで選択"
+        >
+          <Calendar size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OptionTag({
   label,
   editable,
@@ -505,22 +568,7 @@ export function ProfilePage() {
                   生年月日
                 </span>
                 <div className="flex items-center gap-2 flex-1">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={birthDate}
-                      onChange={(event) => setBirthDate(event.target.value)}
-                      disabled={!isEditing}
-                      className="w-full px-4 py-2 pr-9 rounded-full outline-none"
-                      style={{
-                        background: isEditing ? "#FFF8F4" : "#F2F2F2",
-                        border: `1.5px solid ${isEditing ? "#F97316" : "#E0D5CF"}`,
-                        color: isEditing ? "#333" : "#888",
-                        fontSize: "0.88rem",
-                      }}
-                    />
-                    <Calendar size={14} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#AAAAAA" }} />
-                  </div>
+                  <BirthDateInput value={birthDate} onChange={setBirthDate} editable={isEditing} />
                   <span className="flex-shrink-0" style={{ color: "#555", fontSize: "0.88rem" }}>性別</span>
                   {(["M", "F"] as const).map((value) => (
                     <button

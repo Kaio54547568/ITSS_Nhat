@@ -83,6 +83,8 @@ export function AdminVerificationPage() {
   const [query,    setQuery]    = useState("");
   const [page,     setPage]     = useState(1);
   const [selectedId, setSelectedId] = useState<string>("");
+  const [processingId, setProcessingId] = useState<string>("");
+  const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -144,31 +146,55 @@ export function AdminVerificationPage() {
   };
 
   const updateStatus = (id: string, status: VerificationRequest["verificationStatus"]) => {
-    setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, verificationStatus: status } : r)));
+    if (processingId) return;
     void (async () => {
       const request = requests.find((item) => item.id === id);
-      await supabase.from("verification_requests").update({ status }).eq("id", id);
-      if (request?.userId) {
-        const isApproved = status === "認証済み";
-        await supabase
-          .from("profiles")
-          .update({ verification_status: status, account_status: isApproved ? "有効" : "未有効" })
-          .eq("id", request.userId);
-        await supabase
-          .from("profile_admin_overrides")
-          .update({ verified: isApproved, status: isApproved ? "有効" : "未有効" })
-          .eq("profile_id", request.userId);
-        await supabase.from("notifications").insert({
-          id: `notification_verification_${Date.now()}_${request.userId}`,
-          user_id: request.userId,
-          type: "verification",
-          from_user_id: "admin1",
-          message: isApproved ? "アカウント認証が承認されました" : "本人確認が却下されました。プロフィールと本人確認書類を確認してください。",
-          is_read: false,
-          created_at: new Date().toISOString(),
-        });
-      }
-    })().catch((error) => console.error("Failed to update verification status", error));
+      if (!request?.userId) return;
+
+      setProcessingId(id);
+      setFeedback("");
+      const isApproved = status === "認証済み";
+      const resultMessage = isApproved
+        ? "アカウント認証が承認されました"
+        : "本人確認が却下されました。プロフィールと本人確認書類を確認してください。";
+
+      const { error: requestError } = await supabase
+        .from("verification_requests")
+        .update({ status })
+        .eq("id", id);
+      if (requestError) throw requestError;
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ verification_status: status, account_status: isApproved ? "有効" : "未有効" })
+        .eq("id", request.userId);
+      if (profileError) throw profileError;
+
+      const { error: overrideError } = await supabase
+        .from("profile_admin_overrides")
+        .update({ verified: isApproved, status: isApproved ? "有効" : "未有効" })
+        .eq("profile_id", request.userId);
+      if (overrideError) throw overrideError;
+
+      const { error: notificationError } = await supabase.from("notifications").insert({
+        id: `notification_verification_${Date.now()}_${request.userId}`,
+        user_id: request.userId,
+        type: "verification",
+        from_user_id: "admin1",
+        message: resultMessage,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+      if (notificationError) throw notificationError;
+
+      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, verificationStatus: status } : r)));
+      setFeedback("本人確認の結果をユーザーへ通知しました");
+    })()
+      .catch((error) => {
+        console.error("Failed to update verification status", error);
+        setFeedback("処理に失敗しました。もう一度お試しください。");
+      })
+      .finally(() => setProcessingId(""));
   };
 
   const lockSelected = () => {
@@ -306,6 +332,19 @@ export function AdminVerificationPage() {
             <h3 style={{ color: "#F97316", fontWeight: 700, fontSize: "1.1rem", marginBottom: 16 }}>
               ユーザー詳細
             </h3>
+            {feedback && (
+              <div
+                className="rounded-2xl px-4 py-2 mb-4"
+                style={{
+                  background: feedback.includes("失敗") ? "#FEE2E2" : "#F0FFF4",
+                  border: `1.5px solid ${feedback.includes("失敗") ? "#FCA5A5" : "#BBF7D0"}`,
+                  color: feedback.includes("失敗") ? "#DC2626" : "#16A34A",
+                  fontWeight: 700,
+                }}
+              >
+                {feedback}
+              </div>
+            )}
 
             {/* User info card */}
             <div
@@ -367,17 +406,19 @@ export function AdminVerificationPage() {
             <div className="flex gap-4">
               <button
                 onClick={() => updateStatus(selected.id, "認証済み")}
+                disabled={Boolean(processingId)}
                 className="flex-1 py-3 rounded-full flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "#22C55E", color: "white", fontWeight: 700, fontSize: "1rem" }}
+                style={{ background: processingId ? "#D1D5DB" : "#22C55E", color: "white", fontWeight: 700, fontSize: "1rem" }}
               >
-                <Check size={18} /> 承認
+                <Check size={18} /> {processingId === selected.id ? "処理中" : "承認"}
               </button>
               <button
                 onClick={() => updateStatus(selected.id, "未認証")}
+                disabled={Boolean(processingId)}
                 className="flex-1 py-3 rounded-full flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
-                style={{ background: "#EF4444", color: "white", fontWeight: 700, fontSize: "1rem" }}
+                style={{ background: processingId ? "#D1D5DB" : "#EF4444", color: "white", fontWeight: 700, fontSize: "1rem" }}
               >
-                <X size={18} /> 却下
+                <X size={18} /> {processingId === selected.id ? "処理中" : "却下"}
               </button>
               <button
                 onClick={lockSelected}
