@@ -1,5 +1,5 @@
 import { ArrowLeft, MapPin } from "lucide-react";
-import type { AppUser } from "../data/appData";
+import type { AppUser } from "../store/AppDataContext";
 
 export function ProfilePreviewModal({
   user,
@@ -8,8 +8,6 @@ export function ProfilePreviewModal({
   user: AppUser;
   onClose: () => void;
 }) {
-  const gallery = user.gallery.length > 0 ? user.gallery : ["友達とカフェ", "日本語クラス", "旅行"];
-
   return (
     <div
       className="fixed inset-0 z-[80] flex items-center justify-center px-4 py-6"
@@ -30,7 +28,7 @@ export function ProfilePreviewModal({
           <ArrowLeft size={22} />
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-6">
+        <div>
           <div>
             <div className="flex items-center gap-4 mb-5">
               <div
@@ -77,24 +75,6 @@ export function ProfilePreviewModal({
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 style={{ fontWeight: 700, color: "#1A1A1A", marginBottom: 10 }}>ギャラリー</h4>
-            <div className="rounded-xl mb-2 flex items-center justify-center text-center px-4" style={{ height: 100, background: "linear-gradient(135deg, #FFB26B, #F97316)", color: "white", fontWeight: 700 }}>
-              {gallery[0]}
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {gallery.slice(0, 3).map((item, index) => (
-                <div
-                  key={`${item}-${index}`}
-                  className="rounded-lg flex items-center justify-center text-center px-1"
-                  style={{ height: 62, background: index === 2 ? "#555" : "linear-gradient(135deg, #FFE0C8, #F97316)", color: "white", border: "3px solid #F97316", fontWeight: 700, fontSize: "0.8rem" }}
-                >
-                  {index === 2 ? "+3" : item}
-                </div>
-              ))}
             </div>
           </div>
         </div>

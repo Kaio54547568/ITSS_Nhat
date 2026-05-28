@@ -2,7 +2,30 @@ import { useEffect, useMemo, useState } from "react";
 import { MapPin, User, Check } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { ProfilePreviewModal } from "../components/ProfilePreviewModal";
-import { useAppData, type AppUser } from "../store/AppDataContext";
+import { useAppData, type AppNotification, type AppUser } from "../store/AppDataContext";
+
+function notificationText(notification: AppNotification, fromUser?: AppUser) {
+  const name = fromUser?.name ?? "ユーザー";
+  switch (notification.type) {
+    case "friend_request":
+      return `${name}さんからマッチング申請が届きました`;
+    case "friend_request_accepted":
+      return `${name}さんがマッチング申請を承認しました`;
+    case "friend_request_rejected":
+      return `${name}さんがマッチング申請を拒否しました`;
+    case "message":
+      return `${name}さんから新しいメッセージが届きました`;
+    case "verification":
+      return notification.message || "アカウント認証の結果が届きました";
+    case "review":
+      return notification.message || `${name}さんから評価情報が届きました`;
+    case "report":
+    case "account_locked":
+      return notification.message;
+    default:
+      return notification.message;
+  }
+}
 
 export function NotificationsPage() {
   const {
@@ -27,8 +50,7 @@ export function NotificationsPage() {
       notifications
         .filter((notification) => notification.userId === currentUser.id)
         .slice()
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 4),
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [currentUser.id, notifications],
   );
 
@@ -43,7 +65,7 @@ export function NotificationsPage() {
 
   const handleSkip = (requestId: string) => {
     skipFriendRequest(requestId);
-    setFeedback("申請をスキップしました");
+    setFeedback("申請を拒否しました");
   };
 
   return (
@@ -154,7 +176,7 @@ export function NotificationsPage() {
                           minWidth: 68,
                         }}
                       >
-                        スキップ
+                        拒否
                       </button>
 
                       <button
@@ -186,8 +208,7 @@ export function NotificationsPage() {
                       className="px-3 py-2 rounded-2xl"
                       style={{ background: notification.isRead ? "#FAFAFA" : "#FFF0E8", color: "#555", fontSize: "0.88rem" }}
                     >
-                      <strong style={{ color: "#1A1A1A" }}>{fromUser?.name ?? "ユーザー"}</strong>{" "}
-                      {notification.message}
+                      {notificationText(notification, fromUser)}
                     </div>
                   );
                 })}
