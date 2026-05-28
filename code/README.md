@@ -1,107 +1,78 @@
-# 日越フレンド
+# Nichietsu Friend Frontend
 
-React/TypeScript/Vite demo app for the Japanese-Vietnamese friend matching system.
+Frontend React/TypeScript/Vite cho ứng dụng Nichietsu Friend. Thư mục này chỉ chứa phần giao diện và logic phía client; dữ liệu runtime được đọc/ghi qua Supabase.
 
-## Install
+## Cài dependencies
 
 ```bash
 npm install
 ```
 
-Windows fallback:
+Windows PowerShell:
 
-```bash
+```powershell
 npm.cmd install
 ```
 
-## Run
+## Cấu hình môi trường
+
+Copy file mẫu:
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Cập nhật `code/.env`:
+
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-or-anon-key
+```
+
+## Chạy development server
 
 ```bash
 npm run dev
 ```
 
-Windows fallback:
+Windows PowerShell:
 
-```bash
+```powershell
 npm.cmd run dev
 ```
 
-Open:
+Mở trình duyệt tại:
 
 ```text
 http://localhost:5173
 ```
 
-## Build
+## Build production
 
 ```bash
 npm run build
 ```
 
-Windows fallback:
-
-```bash
-npm.cmd run build
-```
-
-## Demo Login
-
-Login uses accounts from:
+Output được tạo tại:
 
 ```text
-src/app/data/data.json
+dist/
 ```
 
-Normal users:
+## Tài khoản demo
 
-```text
-sato / demo
-mai / demo
-```
+- User: `sato` / `demo`
+- Admin: `admin` / `admin`
 
-Admin:
+## Ghi chú dữ liệu
 
-```text
-admin / admin
-```
-
-Redirect rules:
-
-- `user` -> `/home`
-- `admin` -> `/admin/users`
-
-## Implemented Features
-
-- Figma-style welcome/auth UI with orange/peach theme.
-- Unified login for normal users and admins.
-- Register/login required-field validation.
-- User home/profile data loaded from `data.json`.
-- Editable user profile.
-- Avatar image preview update while editing profile.
-- Search and matching with mock users from `data.json`.
-- Profile icon opens a profile popup instead of navigating away.
-- Avatar in user lists is display-only.
-- Chat/history mock flow with localStorage runtime data.
-- Review/report flow.
-- Notifications/matching requests.
-- Admin users, verification, and reports management.
-
-## Runtime Data
-
-Static mock data lives in:
-
-```text
-src/app/data/data.json
-```
-
-Runtime demo state is saved in browser `localStorage`, including login session, matched users, chat messages, and avatar preview changes. These changes are not written back to `data.json` because the app has no backend.
-
-## Git Note
-
-Do not commit `node_modules` or `dist`. They are ignored by the root `.gitignore`.
-
-After cloning, install dependencies again with:
-
-```bash
-npm install
-```
+- App dùng Supabase cho profiles, friend requests, chat, notifications, verification, reports và reviews.
+- Session đăng nhập được lưu trong `localStorage` với key `nv_friend_session`.
+- Ảnh được lưu trong Supabase Storage bucket `pics`.
+- Các file SQL setup database nằm ở thư mục `../database`.
