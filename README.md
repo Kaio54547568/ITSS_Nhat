@@ -1,4 +1,4 @@
-# Nichietsu Friend
+# 日越フレンド
 
 Ứng dụng kết nối bạn bè Nhật - Việt, xây dựng bằng React, TypeScript, Vite và Supabase. Dự án gồm frontend trong thư mục `code` và các file SQL khởi tạo database trong thư mục `database`.
 
