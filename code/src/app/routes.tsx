@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate, Outlet, useRouteError } from "react-router";
-import { getRedirectPathByRole, getSession } from "./data/auth";
+import { useEffect } from "react";
+import { createBrowserRouter, Navigate, Outlet, useLocation, useRouteError } from "react-router";
+import { getRedirectPathByRole, getRedirectPathForSession, getSession, saveSessionPath, type AuthSession } from "./data/auth";
 import { WelcomePage } from "./pages/WelcomePage";
 import { SignUpPage } from "./pages/SignUpPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -20,18 +21,40 @@ function Root() {
   return <Outlet />;
 }
 
+function SessionPathTracker({ role }: { role: AuthSession["role"] }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    saveSessionPath(role, `${location.pathname}${location.search}${location.hash}`);
+  }, [location.hash, location.pathname, location.search, role]);
+
+  return <Outlet />;
+}
+
+function PublicGuard() {
+  const session = getSession();
+  if (session) return <Navigate to={getRedirectPathForSession(session)} replace />;
+  return <Outlet />;
+}
+
+function PublicFallbackPage() {
+  const session = getSession();
+  if (session) return <Navigate to={getRedirectPathForSession(session)} replace />;
+  return <WelcomePage />;
+}
+
 function UserGuard() {
   const session = getSession();
   if (!session) return <Navigate to="/welcome" replace />;
   if (session.role === "admin") return <Navigate to={getRedirectPathByRole(session.role)} replace />;
-  return <Outlet />;
+  return <SessionPathTracker role={session.role} />;
 }
 
 function AdminGuard() {
   const session = getSession();
   if (!session) return <Navigate to="/login" replace />;
   if (session.role !== "admin") return <Navigate to={getRedirectPathByRole(session.role)} replace />;
-  return <Outlet />;
+  return <SessionPathTracker role={session.role} />;
 }
 
 function ErrorPage() {
@@ -81,11 +104,16 @@ export const router = createBrowserRouter([
     Component: Root,
     errorElement: <ErrorPage />,
     children: [
-      { index: true, Component: WelcomePage },
-      { path: "welcome", Component: WelcomePage },
-      { path: "signup", Component: SignUpPage },
-      { path: "register", Component: SignUpPage },
-      { path: "login", Component: LoginPage },
+      {
+        Component: PublicGuard,
+        children: [
+          { index: true, Component: WelcomePage },
+          { path: "welcome", Component: WelcomePage },
+          { path: "signup", Component: SignUpPage },
+          { path: "register", Component: SignUpPage },
+          { path: "login", Component: LoginPage },
+        ],
+      },
       {
         Component: UserGuard,
         children: [
@@ -112,7 +140,7 @@ export const router = createBrowserRouter([
           { path: "admin/reports", Component: AdminReportsPage },
         ],
       },
-      { path: "*", Component: WelcomePage },
+      { path: "*", Component: PublicFallbackPage },
     ],
   },
 ]);

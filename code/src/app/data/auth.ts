@@ -1,6 +1,7 @@
 import { supabase } from "../supabase";
 
 const SESSION_KEY = "nv_friend_session";
+const LAST_SESSION_PATH_KEY = "nv_friend_last_session_path";
 
 function notifySessionChanged() {
   window.dispatchEvent(new Event("nv_friend_session_changed"));
@@ -22,6 +23,38 @@ export interface RegisteredUser {
 
 export function getRedirectPathByRole(role: AuthSession["role"]) {
   return role === "admin" ? "/admin/users" : "/home";
+}
+
+function isAuthPath(path: string) {
+  return path === "/" || path === "/welcome" || path === "/login" || path === "/signup" || path === "/register";
+}
+
+function canUseSavedPath(role: AuthSession["role"], path: string) {
+  if (!path.startsWith("/")) return false;
+  if (role === "admin") return path.startsWith("/admin");
+  return !path.startsWith("/admin") && !isAuthPath(path);
+}
+
+export function saveSessionPath(role: AuthSession["role"], path: string) {
+  if (!canUseSavedPath(role, path)) return;
+  localStorage.setItem(LAST_SESSION_PATH_KEY, JSON.stringify({ role, path }));
+}
+
+export function getRedirectPathForSession(session: AuthSession) {
+  const fallbackPath = getRedirectPathByRole(session.role);
+  const saved = localStorage.getItem(LAST_SESSION_PATH_KEY);
+  if (!saved) return fallbackPath;
+
+  try {
+    const parsed = JSON.parse(saved) as { role?: AuthSession["role"]; path?: string };
+    if (parsed.role === session.role && parsed.path && canUseSavedPath(session.role, parsed.path)) {
+      return parsed.path;
+    }
+  } catch {
+    return fallbackPath;
+  }
+
+  return fallbackPath;
 }
 
 export function getSession(): AuthSession | null {
@@ -143,5 +176,6 @@ export async function registerUser(username: string, password: string): Promise<
 
 export function logout() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LAST_SESSION_PATH_KEY);
   notifySessionChanged();
 }
