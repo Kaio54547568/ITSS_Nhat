@@ -713,15 +713,15 @@ export function ProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <VerificationUploadCard label="CCCD 表面をアップロード" preview={idCardPreview} disabled={!canEditIdCard} onChange={handleIdCardChange} />
+                  <VerificationUploadCard label="本人確認書類（表面）をアップロード" preview={idCardPreview} disabled={!canEditIdCard} onChange={handleIdCardChange} />
                   <VerificationUploadCard
-                    label="CCCD 裏面をアップロード"
+                    label="本人確認書類（裏面）をアップロード"
                     preview={idCardBackPreview}
                     disabled={!canEditIdCard}
                     onChange={(event) => handleVerificationImageChange(event, setIdCardBackFile, setIdCardBackPreview)}
                   />
                   <VerificationUploadCard
-                    label="CCCDを持った自撮りをアップロード"
+                    label="本人確認書類を持った自撮りをアップロード"
                     preview={idCardSelfiePreview}
                     disabled={!canEditIdCard}
                     onChange={(event) => handleVerificationImageChange(event, setIdCardSelfieFile, setIdCardSelfiePreview)}

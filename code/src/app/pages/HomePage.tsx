@@ -11,16 +11,13 @@ const analyticsImg =
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { currentUser, chatThreads, users } = useAppData();
+  const { currentUser, chatThreads, friendRequests } = useAppData();
   const savedAvatar = getPicUrl(currentUser.avatarPath);
   const unreadMessageCount = chatThreads.reduce(
     (total, thread) => total + (thread.unreadCountByUserId[currentUser.id] ?? 0),
     0,
   );
-  const matchRate = calculateMatchRate(
-    currentUser,
-    users.filter((user) => user.id !== currentUser.id && user.role === "user"),
-  );
+  const matchRate = calculateMatchRate(currentUser.id, friendRequests);
   const stats = [
     {
       label: "コネクション",

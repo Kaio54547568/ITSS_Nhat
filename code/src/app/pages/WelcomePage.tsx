@@ -27,16 +27,6 @@ export function WelcomePage() {
             fontWeight: 600,
           }}
         >
-          マッチして・つながって・話そう
-        </p>
-        <p
-          className="text-center max-w-md"
-          style={{
-            color: "#C05A1A",
-            fontSize: "clamp(0.8rem, 1.5vw, 0.95rem)",
-            lineHeight: 1.6,
-          }}
-        >
           言葉を越えて、心で繋ぐ
         </p>
       </div>

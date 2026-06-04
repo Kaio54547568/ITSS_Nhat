@@ -20,6 +20,11 @@ export interface ConversationSuggestionCycle {
   expiresAt: number;
 }
 
+export interface MatchRateRequest {
+  fromUserId: string;
+  status: string;
+}
+
 const INTEREST_SUGGESTIONS: Record<string, string[]> = {
   テクノロジー: ["テクノロジーについて、最近気になるニュースはありますか？", "テクノロジーで生活が便利になったと感じることはありますか？"],
   コーヒー: ["コーヒーが好きとのことですが、おすすめのお店はありますか？", "コーヒーはどんな飲み方が好きですか？"],
@@ -76,12 +81,13 @@ export function calculateCompatibility(
 export function rankCompatibleUsers<T extends RankableProfile>(
   current: RankableProfile,
   candidates: T[],
-  ageRange: { minAge?: number; maxAge?: number } = {},
+  filters: { minAge?: number; maxAge?: number; selectedCountry?: "" | "VN" | "JP" } = {},
 ) {
   return candidates
     .filter((candidate) => {
-      if (ageRange.minAge !== undefined && candidate.age < ageRange.minAge) return false;
-      if (ageRange.maxAge !== undefined && candidate.age > ageRange.maxAge) return false;
+      if (filters.minAge !== undefined && candidate.age < filters.minAge) return false;
+      if (filters.maxAge !== undefined && candidate.age > filters.maxAge) return false;
+      if (filters.selectedCountry && candidate.countryCode !== filters.selectedCountry) return false;
       return true;
     })
     .map((candidate) => ({
@@ -98,31 +104,34 @@ export function rankCompatibleUsers<T extends RankableProfile>(
 }
 
 export function calculateMatchRate(
-  current: CompatibilityProfile,
-  candidates: CompatibilityProfile[],
+  currentUserId: string,
+  requests: MatchRateRequest[],
 ) {
-  const maximumScore = current.interests.length * 10 + current.personality.length;
-  if (maximumScore === 0 || candidates.length === 0) return 0;
-  const bestScore = candidates.reduce(
-    (best, candidate) => Math.max(best, calculateCompatibility(current, candidate).score),
-    0,
-  );
-  return Math.min(100, Math.round((bestScore / maximumScore) * 100));
+  const outboundRequests = requests.filter((request) => request.fromUserId === currentUserId);
+  if (outboundRequests.length === 0) return 0;
+  const acceptedRequests = outboundRequests.filter((request) => request.status === "accepted").length;
+  return Math.round((acceptedRequests / outboundRequests.length) * 100);
 }
 
 export function getConversationSuggestions(
   current: CompatibilityProfile,
   contact: CompatibilityProfile,
   random: () => number = Math.random,
+  excludedSuggestions: string[] = [],
 ) {
   const commonInterests = intersection(current.interests, contact.interests);
-  const pool = commonInterests.flatMap((interest) =>
-    INTEREST_SUGGESTIONS[interest] ?? [
+  const interestPool = commonInterests.flatMap((interest) => [
+    ...(INTEREST_SUGGESTIONS[interest] ?? [
       `${interest}が好きとのことですが、始めたきっかけは何ですか？`,
       `${interest}について、おすすめを教えてください。`,
-    ],
+    ]),
+    `${interest}を一緒に楽しむなら、何をしてみたいですか？`,
+    `${interest}の魅力を一つ紹介するとしたら、何を選びますか？`,
+  ]);
+  const excluded = new Set(excludedSuggestions);
+  const available = Array.from(new Set([...interestPool, ...GENERAL_SUGGESTIONS])).filter(
+    (suggestion) => !excluded.has(suggestion),
   );
-  const available = [...(pool.length >= 2 ? pool : [...pool, ...GENERAL_SUGGESTIONS])];
   const selected: string[] = [];
   while (available.length > 0 && selected.length < 2) {
     const index = Math.min(available.length - 1, Math.floor(random() * available.length));
@@ -139,10 +148,11 @@ export function resolveConversationSuggestionCycle(
   now: number,
   refreshIntervalMs: number,
   random: () => number = Math.random,
+  forceRefresh = false,
 ): ConversationSuggestionCycle {
-  if (cached && cached.expiresAt > now && cached.suggestions.length === 2) return cached;
+  if (!forceRefresh && cached && cached.expiresAt > now && cached.suggestions.length === 2) return cached;
   return {
-    suggestions: getConversationSuggestions(current, contact, random),
+    suggestions: getConversationSuggestions(current, contact, random, cached?.suggestions),
     expiresAt: now + refreshIntervalMs,
   };
 }

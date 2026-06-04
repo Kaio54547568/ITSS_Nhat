@@ -96,6 +96,7 @@ export interface ChatThread {
 interface FilterUsersInput {
   minAge?: number;
   maxAge?: number;
+  selectedCountry?: "" | "VN" | "JP";
 }
 
 interface AppDataContextValue {
@@ -684,7 +685,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   );
 
   const filterUsers = useCallback(
-    ({ minAge, maxAge }: FilterUsersInput) => {
+    ({ minAge, maxAge, selectedCountry }: FilterUsersInput) => {
       const candidates = data.users.filter((user) => {
         if (user.role !== "user" || user.id === currentUser.id) return false;
         if (user.accountStatus !== "有効") return false;
@@ -698,7 +699,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         if (currentUser.friends.includes(user.id) && !hasIncomingPendingRequest) return false;
         return true;
       });
-      return rankCompatibleUsers(currentUser, candidates, { minAge, maxAge });
+      return rankCompatibleUsers(currentUser, candidates, { minAge, maxAge, selectedCountry });
     },
     [currentUser.friends, currentUser.id, data.friendRequests, data.users],
   );

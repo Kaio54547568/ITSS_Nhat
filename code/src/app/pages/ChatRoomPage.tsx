@@ -149,6 +149,25 @@ export function ChatRoomPage() {
   const handleSend = () => {
     if (!thread || !input.trim()) return;
     sendMessage(thread.id, input);
+    if (contact) {
+      const storageKey = `${SUGGESTION_STORAGE_PREFIX}_${currentUser.id}_${contact.id}`;
+      const now = Date.now();
+      const cached = readSuggestionCycle(storageKey) ?? {
+        suggestions: suggestedTopics,
+        expiresAt: now + SUGGESTION_REFRESH_INTERVAL_MS,
+      };
+      const nextCycle = resolveConversationSuggestionCycle(
+        currentUser,
+        contact,
+        cached,
+        now,
+        SUGGESTION_REFRESH_INTERVAL_MS,
+        Math.random,
+        true,
+      );
+      writeSuggestionCycle(storageKey, nextCycle);
+      setSuggestedTopics(nextCycle.suggestions);
+    }
     setInput("");
     setIsEmojiOpen(false);
     inputRef.current?.focus();
@@ -191,9 +210,10 @@ export function ChatRoomPage() {
                 <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl" style={{ background: contact.avatarColor }}>
                   {contact.avatarEmoji}
                 </div>
-                {contact.online && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white" style={{ background: "#22C55E" }} />
-                )}
+                <div
+                  className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
+                  style={{ background: contact.online ? "#22C55E" : "#A3A3A3" }}
+                />
               </div>
 
               <div className="min-w-0">

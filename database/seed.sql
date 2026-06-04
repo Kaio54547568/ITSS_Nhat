@@ -38,7 +38,7 @@ truncate table app_metadata restart identity cascade;
 truncate table profiles restart identity cascade;
 
 insert into app_metadata (key, value) values
-('app', '{"name":"日越フレンド","subtitle":"マッチして、つながって、話そう","description":"ハノイで暮らす日本人と、日本語を学ぶベトナム人をつなぐ友達づくりアプリです。"}'::jsonb),
+('app', '{"name":"日越フレンド","subtitle":"言葉を越えて、心で繋ぐ","description":"ハノイで暮らす日本人と、日本語を学ぶベトナム人をつなぐ友達づくりアプリです。"}'::jsonb),
 ('authPolicy', '{"adminLoginRequiresCredentials":true,"unifiedLoginRoute":"/login"}'::jsonb),
 ('mainRoutes', '{"public":["/","/welcome","/login","/register"],"user":["/home","/profile","/search","/history","/chat/:id","/report/:id","/notifications"],"admin":["/admin","/admin/users","/admin/verification","/admin/reports"]}'::jsonb)
 on conflict (key) do update set value = excluded.value;

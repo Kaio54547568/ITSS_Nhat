@@ -416,9 +416,9 @@ export function AdminVerificationPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
-              <DocumentImageCard label="CCCD 表面" imagePath={selected.idCardFrontImage || selected.idCardImage} />
-              <DocumentImageCard label="CCCD 裏面" imagePath={selected.idCardBackImage} />
-              <DocumentImageCard label="CCCDを持った自撮り" imagePath={selected.idCardSelfieImage} />
+              <DocumentImageCard label="本人確認書類（表面）" imagePath={selected.idCardFrontImage || selected.idCardImage} />
+              <DocumentImageCard label="本人確認書類（裏面）" imagePath={selected.idCardBackImage} />
+              <DocumentImageCard label="本人確認書類を持った自撮り" imagePath={selected.idCardSelfieImage} />
             </div>
 
             {/* Action buttons */}

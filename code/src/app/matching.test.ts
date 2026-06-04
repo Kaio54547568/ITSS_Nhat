@@ -45,11 +45,31 @@ describe("rankCompatibleUsers", () => {
       "same-country-high",
     ]);
   });
+
+  it("filters candidates by the selected country", () => {
+    const ranked = rankCompatibleUsers(
+      currentUser,
+      [
+        { ...currentUser, id: "vietnam", countryCode: "VN" as const },
+        { ...currentUser, id: "japan", countryCode: "JP" as const },
+      ],
+      { selectedCountry: "JP" },
+    );
+
+    expect(ranked.map((user) => user.id)).toEqual(["japan"]);
+  });
 });
 
 describe("calculateMatchRate", () => {
-  it("returns zero for a new account without interests or personality", () => {
-    expect(calculateMatchRate({ interests: [], personality: [] }, [])).toBe(0);
+  it("counts accepted outbound requests over every outbound request, including pending requests", () => {
+    expect(
+      calculateMatchRate("current", [
+        { fromUserId: "current", status: "accepted" },
+        { fromUserId: "current", status: "pending" },
+        { fromUserId: "current", status: "rejected" },
+        { fromUserId: "other", status: "accepted" },
+      ]),
+    ).toBe(33);
   });
 });
 
@@ -102,5 +122,29 @@ describe("resolveConversationSuggestionCycle", () => {
 
     expect(result.suggestions).not.toEqual(["期限切れ1", "期限切れ2"]);
     expect(result.expiresAt).toBe(610_000);
+  });
+
+  it("generates a different pair immediately after a message is sent", () => {
+    const previous = {
+      suggestions: [
+        "写真が好きとのことですが、最近どんな写真を撮りましたか？",
+        "写真を撮りに行くなら、どこがおすすめですか？",
+      ],
+      expiresAt: 610_000,
+    };
+
+    const result = resolveConversationSuggestionCycle(
+      currentUser,
+      { interests: ["写真"], personality: [] },
+      previous,
+      10_000,
+      600_000,
+      () => 0,
+      true,
+    );
+
+    expect(result.suggestions).toHaveLength(2);
+    expect(result.suggestions).not.toEqual(previous.suggestions);
+    expect(result.suggestions.every((suggestion) => !previous.suggestions.includes(suggestion))).toBe(true);
   });
 });

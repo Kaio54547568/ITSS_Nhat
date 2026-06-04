@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, User } from "lucide-react";
+import { ChevronDown, MapPin, User } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { ProfilePreviewModal } from "../components/ProfilePreviewModal";
 import { useAppData, type AppUser } from "../store/AppDataContext";
@@ -7,6 +7,7 @@ import { useAppData, type AppUser } from "../store/AppDataContext";
 export function SearchPage() {
   const [ageFrom, setAgeFrom] = useState("");
   const [ageTo, setAgeTo] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<"" | "VN" | "JP">("");
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const {
     currentUser,
@@ -23,6 +24,7 @@ export function SearchPage() {
   const filtered = filterUsers({
     minAge: Number.isFinite(minAge) ? minAge : undefined,
     maxAge: Number.isFinite(maxAge) ? maxAge : undefined,
+    selectedCountry,
   });
 
   const getRequestButton = (userId: string) => {
@@ -66,25 +68,51 @@ export function SearchPage() {
               />
             </div>
 
+            <div className="relative ml-auto">
+              <select
+                value={selectedCountry}
+                onChange={(event) => setSelectedCountry(event.target.value as "" | "VN" | "JP")}
+                className="appearance-none rounded-full pl-4 pr-9 py-1.5 text-sm outline-none"
+                style={{
+                  background: selectedCountry ? "#FFF0E8" : "white",
+                  border: `1.5px solid ${selectedCountry ? "#F97316" : "#F0D5C8"}`,
+                  color: selectedCountry ? "#E8641A" : "#555",
+                  fontWeight: selectedCountry ? 600 : 400,
+                  minWidth: 130,
+                }}
+                aria-label="国で絞り込み"
+              >
+                <option value="">すべての国</option>
+                <option value="VN">ベトナム</option>
+                <option value="JP">日本</option>
+              </select>
+              <ChevronDown
+                size={15}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: selectedCountry ? "#F97316" : "#AAAAAA" }}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2 mb-4">
+          <div className="flex flex-col gap-3 mb-5">
             {[
               ["興味", currentUser.interests],
               ["性格", currentUser.personality],
             ].map(([label, values]) => (
-              <div key={label as string} className="flex items-center gap-2 flex-wrap">
-                <span className="px-4 py-1.5 rounded-full text-sm" style={{ background: "#F97316", color: "white", fontWeight: 700 }}>
+              <section key={label as string}>
+                <h2 className="mb-2" style={{ color: "#F97316", fontSize: "1.4rem", fontWeight: 700 }}>
                   {label as string}
-                </span>
-                {(values as string[]).length > 0 ? (values as string[]).map((value) => (
-                  <span key={value} className="px-4 py-1.5 rounded-full text-sm" style={{ background: "white", color: "#555", border: "1.5px solid #E8E0DC" }}>
-                    {value}
-                  </span>
-                )) : (
-                  <span className="px-3 py-1.5 text-sm" style={{ color: "#999" }}>プロフィールで設定してください</span>
-                )}
-              </div>
+                </h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(values as string[]).length > 0 ? (values as string[]).map((value) => (
+                    <span key={value} className="px-4 py-1.5 rounded-full text-sm" style={{ background: "white", color: "#555", border: "1.5px solid #E8E0DC" }}>
+                      {value}
+                    </span>
+                  )) : (
+                    <span className="px-3 py-1.5 text-sm" style={{ color: "#999" }}>プロフィールで設定してください</span>
+                  )}
+                </div>
+              </section>
             ))}
           </div>
 
