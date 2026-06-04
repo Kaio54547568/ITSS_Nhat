@@ -4,7 +4,39 @@ import { Mic, Send, Smile } from "lucide-react";
 import { ContactsList } from "../components/ContactsList";
 import { Layout } from "../components/Layout";
 import { useAppData } from "../store/AppDataContext";
+import {
+  resolveConversationSuggestionCycle,
+  type ConversationSuggestionCycle,
+} from "../matching";
 import { supabase } from "../supabase";
+
+const SUGGESTION_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const SUGGESTION_STORAGE_PREFIX = "nv_friend_suggestions_v1";
+
+function readSuggestionCycle(key: string): ConversationSuggestionCycle | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? "null") as Partial<ConversationSuggestionCycle> | null;
+    if (
+      !value ||
+      !Array.isArray(value.suggestions) ||
+      !value.suggestions.every((suggestion) => typeof suggestion === "string") ||
+      typeof value.expiresAt !== "number"
+    ) {
+      return null;
+    }
+    return { suggestions: value.suggestions, expiresAt: value.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeSuggestionCycle(key: string, cycle: ConversationSuggestionCycle) {
+  try {
+    localStorage.setItem(key, JSON.stringify(cycle));
+  } catch {
+    // Suggestions can still refresh in-memory when storage is unavailable.
+  }
+}
 
 function EmojiPickerPanel({ emojis, onSelect }: { emojis: string[]; onSelect: (emoji: string) => void }) {
   return (
@@ -55,22 +87,48 @@ export function ChatRoomPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiRootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const currentSuggestionProfileKey = `${currentUser.interests.join("|")}:${currentUser.personality.join("|")}`;
+  const contactSuggestionProfileKey = contact
+    ? `${contact.interests.join("|")}:${contact.personality.join("|")}`
+    : "";
 
   useEffect(() => {
     void (async () => {
       const { data, error } = await supabase
         .from("reference_options")
         .select("kind, value")
-        .in("kind", ["emoji", "conversation_topic"])
+        .eq("kind", "emoji")
         .order("sort_order", { ascending: true });
       if (error) {
         console.error("Failed to load chat reference options", error);
         return;
       }
       setEmojiList((data ?? []).filter((option) => option.kind === "emoji").map((option) => option.value));
-      setSuggestedTopics((data ?? []).filter((option) => option.kind === "conversation_topic").map((option) => option.value));
     })();
   }, []);
+
+  useEffect(() => {
+    if (!contact) return;
+    const storageKey = `${SUGGESTION_STORAGE_PREFIX}_${currentUser.id}_${contact.id}`;
+    let timerId = 0;
+
+    const refreshSuggestions = () => {
+      const now = Date.now();
+      const cycle = resolveConversationSuggestionCycle(
+        currentUser,
+        contact,
+        readSuggestionCycle(storageKey),
+        now,
+        SUGGESTION_REFRESH_INTERVAL_MS,
+      );
+      writeSuggestionCycle(storageKey, cycle);
+      setSuggestedTopics(cycle.suggestions);
+      timerId = window.setTimeout(refreshSuggestions, Math.max(1_000, cycle.expiresAt - Date.now()));
+    };
+
+    refreshSuggestions();
+    return () => window.clearTimeout(timerId);
+  }, [contact?.id, contactSuggestionProfileKey, currentSuggestionProfileKey, currentUser.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,7 +186,7 @@ export function ChatRoomPage() {
             className="flex items-center gap-3 px-5 py-3 flex-shrink-0 cursor-pointer hover:bg-orange-50 transition-colors"
             style={{ borderBottom: "1.5px solid #F5DDD0", background: "white" }}
           >
-            <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => navigate(`/review/${contactId}`)}>
+            <div className="flex items-center gap-3 flex-1 min-w-0" onClick={() => navigate(`/users/${contactId}`)}>
               <div className="relative flex-shrink-0">
                 <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl" style={{ background: contact.avatarColor }}>
                   {contact.avatarEmoji}

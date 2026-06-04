@@ -9,7 +9,6 @@ import { SearchPage } from "./pages/SearchPage";
 import { UserDetailPage } from "./pages/UserDetailPage";
 import { ChatHistoryPage } from "./pages/ChatHistoryPage";
 import { ChatRoomPage } from "./pages/ChatRoomPage";
-import { ReviewPage } from "./pages/ReviewPage";
 import { ReportPage } from "./pages/ReportPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -126,7 +125,6 @@ export const router = createBrowserRouter([
           { path: "history", Component: ChatHistoryPage },
           { path: "chat", Component: ChatHistoryPage },
           { path: "chat/:id", Component: ChatRoomPage },
-          { path: "review/:id", Component: ReviewPage },
           { path: "report/:id", Component: ReportPage },
           { path: "notifications", Component: NotificationsPage },
         ],

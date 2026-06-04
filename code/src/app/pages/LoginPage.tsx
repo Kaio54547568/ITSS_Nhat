@@ -77,11 +77,11 @@ export function LoginPage() {
                 letterSpacing: "0.08em",
               }}
             >
-              USERNAME
+              ユーザー名
             </label>
             <input
               type="text"
-              placeholder="name"
+              placeholder="ユーザー名を入力"
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value);
@@ -113,7 +113,7 @@ export function LoginPage() {
                 letterSpacing: "0.08em",
               }}
             >
-              PASSWORD
+              パスワード
             </label>
             <input
               type="password"
@@ -156,7 +156,7 @@ export function LoginPage() {
               fontWeight: 700,
             }}
           >
-            {isSubmitting ? "Logging in..." : "Log In"}
+            {isSubmitting ? "ログイン中..." : "ログイン"}
           </button>
 
           {/* Sign up link */}
@@ -164,13 +164,13 @@ export function LoginPage() {
             className="text-center mt-4"
             style={{ color: "#F97316", fontSize: "0.85rem" }}
           >
-            Don't have an account?{" "}
+            アカウントをお持ちでない方は{" "}
             <button
               onClick={() => navigate("/signup")}
               className="font-bold underline hover:opacity-80"
               style={{ color: "#F97316" }}
             >
-              Sign up.
+              新規登録
             </button>
           </p>
         </div>

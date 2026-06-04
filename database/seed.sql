@@ -3,17 +3,25 @@
 
 begin;
 
+delete from notifications where type = 'review';
 alter table notifications drop constraint if exists notifications_type_check;
 alter table notifications
   add constraint notifications_type_check
-  check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'review', 'report', 'verification', 'account_locked'));
+  check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'report', 'verification', 'account_locked'));
 
 alter table profiles add column if not exists id_card_image text;
+alter table profiles add column if not exists country_code text;
+alter table profiles add column if not exists id_card_front_image text;
+alter table profiles add column if not exists id_card_back_image text;
+alter table profiles add column if not exists id_card_selfie_image text;
 alter table verification_requests add column if not exists id_card_image text;
+alter table verification_requests add column if not exists id_card_front_image text;
+alter table verification_requests add column if not exists id_card_back_image text;
+alter table verification_requests add column if not exists id_card_selfie_image text;
 alter table verification_requests add column if not exists profile_snapshot jsonb;
 alter table verification_requests drop column if exists media_placeholder;
 
-truncate table reviews restart identity cascade;
+drop table if exists reviews;
 truncate table chat_messages restart identity cascade;
 truncate table chat_thread_participants restart identity cascade;
 truncate table notifications restart identity cascade;
@@ -32,7 +40,7 @@ truncate table profiles restart identity cascade;
 insert into app_metadata (key, value) values
 ('app', '{"name":"日越フレンド","subtitle":"マッチして、つながって、話そう","description":"ハノイで暮らす日本人と、日本語を学ぶベトナム人をつなぐ友達づくりアプリです。"}'::jsonb),
 ('authPolicy', '{"adminLoginRequiresCredentials":true,"unifiedLoginRoute":"/login"}'::jsonb),
-('mainRoutes', '{"public":["/","/welcome","/login","/register"],"user":["/home","/profile","/search","/history","/chat/:id","/review/:id","/report/:id","/notifications"],"admin":["/admin","/admin/users","/admin/verification","/admin/reports"]}'::jsonb)
+('mainRoutes', '{"public":["/","/welcome","/login","/register"],"user":["/home","/profile","/search","/history","/chat/:id","/report/:id","/notifications"],"admin":["/admin","/admin/users","/admin/verification","/admin/reports"]}'::jsonb)
 on conflict (key) do update set value = excluded.value;
 
 insert into demo_accounts (role, label, username, password, redirect_after_login) values
@@ -173,10 +181,54 @@ where role = 'user'
   and verification_status in ('認証済み', '承認済み');
 
 update profiles
-set id_card_image = null
+set
+  id_card_front_image = id_card_image,
+  id_card_back_image = id_card_image,
+  id_card_selfie_image = id_card_image
+where role = 'user'
+  and verification_status in ('認証済み', '承認済み');
+
+update profiles
+set
+  id_card_image = null,
+  id_card_front_image = null,
+  id_card_back_image = null,
+  id_card_selfie_image = null
 where role = 'user'
   and verification_status not in ('認証済み', '承認済み')
   and id_card_image like 'demo/id-cards/%';
+
+update profiles
+set languages = (
+  select coalesce(array_agg(distinct normalized), '{}'::text[])
+  from (
+    select case
+      when language like '日本語%' then '日本語'
+      when language like 'ベトナム語%' then 'ベトナム語'
+      when language = '英語' then '英語'
+    end as normalized
+    from unnest(languages) as language
+  ) normalized_languages
+  where normalized is not null
+);
+
+update profiles
+set personality = (
+  select coalesce(array_agg(distinct normalized), '{}'::text[])
+  from (
+    select case
+      when value in ('社交的', '明るい', 'ポジティブ', '自信満々') then '外向的'
+      when value in ('行動的', '健康的') then 'アクティブ'
+      when value = '落ち着いている' then '落ち着いている'
+      when value in ('まじめ', '努力家', '誠実', '責任感', '丁寧', '計画的', '正直', '論理的') then '真面目'
+      when value = '親切' then '思いやりがある'
+      when value in ('好奇心旺盛', 'クリエイティブ', '前向き') then '好奇心旺盛'
+      when value = '聞き上手' then '聞き上手'
+    end as normalized
+    from unnest(personality) as value
+  ) normalized_personality
+  where normalized is not null
+);
 
 insert into profile_admin_overrides (id, profile_id, name, email, status, verified, report_count) values
 (1, 'u1', '佐藤 アレックス', 'sato@example.com', '有効', true, 0),
@@ -287,7 +339,6 @@ insert into notifications (id, user_id, type, from_user_id, request_id, thread_i
 ('notification_accept_u10_u1', 'u1', 'friend_request_accepted', 'u10', null, null, '山本 さくらさんがマッチング申請を承認しました', true, '2026-05-18T12:00:00+07:00'),
 ('notification_accept_u11_u1', 'u1', 'friend_request_accepted', 'u11', null, null, 'チャン ミン コアさんがマッチング申請を承認しました', true, '2026-05-18T13:00:00+07:00'),
 ('notification_verification_u1', 'u1', 'verification', 'admin1', null, null, 'アカウント認証が承認されました', true, '2026-05-18T07:40:00+07:00'),
-('notification_review_u6_u1', 'u1', 'review', 'u6', null, null, '評価情報が届きました', true, '2026-05-19T12:00:00+07:00'),
 ('notification_reject_u23_u22', 'u22', 'friend_request_rejected', 'u23', 'request_u22_u23', null, 'ファム トゥ チャンさんがマッチング申請を拒否しました', true, '2026-05-18T12:00:00+07:00'),
 ('notification_locked_u19', 'u19', 'account_locked', 'admin1', null, null, '通報が3件以上になったため、アカウントが利用停止になりました', false, '2026-05-06T18:00:00+07:00')
 on conflict (id) do update set message = excluded.message, is_read = excluded.is_read, thread_id = excluded.thread_id;
@@ -311,11 +362,15 @@ on conflict (id) do update set status = excluded.status, updated_at = now();
 update verification_requests vr
 set
   id_card_image = p.id_card_image,
+  id_card_front_image = p.id_card_front_image,
+  id_card_back_image = p.id_card_back_image,
+  id_card_selfie_image = p.id_card_selfie_image,
   profile_snapshot = jsonb_build_object(
     'name', p.name,
     'phone', p.phone,
     'email', p.email,
     'address', p.address,
+    'countryCode', p.country_code,
     'birthDate', p.birth_date,
     'gender', p.gender,
     'bio', p.bio,
@@ -323,25 +378,18 @@ set
     'interests', p.interests,
     'personality', p.personality,
     'avatar', p.avatar,
-    'idCardImage', p.id_card_image
+    'idCardImage', p.id_card_image,
+    'idCardFrontImage', p.id_card_front_image,
+    'idCardBackImage', p.id_card_back_image,
+    'idCardSelfieImage', p.id_card_selfie_image
   )
 from profiles p
 where p.id = vr.user_id;
 
-insert into reviews (reviewer_user_id, target_user_id, rating, feedback, submitted_at) values
-('u1', 'u6', 5, '会話が丁寧で楽しかったです。', '2026-05-19T12:00:00+07:00'),
-('u8', 'u1', 4, '日本語の練習に前向きでした。', '2026-05-19T12:10:00+07:00'),
-('u10', 'u1', 5, '写真の話で盛り上がりました。', '2026-05-19T12:20:00+07:00');
-
 insert into reference_options (kind, value, sort_order) values
 ('language', 'ベトナム語', 1),
-('language', '日本語', 2),
-('language', '英語', 3),
-('language', '日本語N1', 4),
-('language', '日本語N2', 5),
-('language', '日本語N3', 6),
-('language', '日本語N4', 7),
-('language', 'ベトナム語初級', 8),
+('language', '英語', 2),
+('language', '日本語', 3),
 ('interest', 'テクノロジー', 1),
 ('interest', 'コーヒー', 2),
 ('interest', '写真', 3),
@@ -365,40 +413,21 @@ insert into reference_options (kind, value, sort_order) values
 ('interest', '本', 21),
 ('interest', 'スタートアップ', 22),
 ('interest', 'ベトナム文化', 23),
-('personality', '正直', 1),
-('personality', 'クリエイティブ', 2),
-('personality', '聞き上手', 3),
-('personality', '明るい', 4),
-('personality', '努力家', 5),
-('personality', '親切', 6),
-('personality', '落ち着いている', 7),
-('personality', '誠実', 8),
-('personality', '前向き', 9),
-('personality', '丁寧', 10),
-('personality', '自信満々', 11),
-('personality', '計画的', 12),
-('personality', '社交的', 13),
-('personality', 'ポジティブ', 14),
-('personality', '責任感', 15),
-('personality', 'まじめ', 16),
-('personality', '好奇心旺盛', 17),
-('personality', '行動的', 18),
-('personality', '論理的', 19),
-('personality', '健康的', 20),
+('personality', '外向的', 1),
+('personality', '内向的', 2),
+('personality', 'アクティブ', 3),
+('personality', '落ち着いている', 4),
+('personality', 'のんびり', 5),
+('personality', 'ユーモアがある', 6),
+('personality', '真面目', 7),
+('personality', '思いやりがある', 8),
+('personality', '好奇心旺盛', 9),
+('personality', '聞き上手', 10),
 ('report_reason', '不適切な行動', 1),
 ('report_reason', 'スパム・詐欺', 2),
 ('report_reason', '偽プロフィール', 3),
 ('report_reason', '嫌がらせ', 4),
 ('report_reason', 'その他', 5),
-('conversation_topic', '食べ物', 1),
-('conversation_topic', '勉強', 2),
-('conversation_topic', '旅行', 3),
-('conversation_topic', '日本語', 4),
-('conversation_topic', 'ベトナム文化', 5),
-('conversation_topic', '今週末、コーヒーでも飲みに行きましょう。', 6),
-('conversation_topic', '最近の仕事はどうですか？', 7),
-('conversation_topic', '好きな食べ物は何ですか？', 8),
-('conversation_topic', '週末は何をしていますか？', 9),
 ('emoji', '😀', 1),
 ('emoji', '😊', 2),
 ('emoji', '😂', 3),
@@ -432,9 +461,8 @@ insert into reference_options (kind, value, sort_order) values
 ('demo_route_user', '/search', 3),
 ('demo_route_user', '/history', 4),
 ('demo_route_user', '/chat/:id', 5),
-('demo_route_user', '/review/:id', 6),
-('demo_route_user', '/report/:id', 7),
-('demo_route_user', '/notifications', 8),
+('demo_route_user', '/report/:id', 6),
+('demo_route_user', '/notifications', 7),
 ('demo_route_admin', '/admin', 1),
 ('demo_route_admin', '/admin/users', 2),
 ('demo_route_admin', '/admin/verification', 3),

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Layout } from "../components/Layout";
 import { getPicUrl } from "../storage/pics";
 import { useAppData } from "../store/AppDataContext";
+import { calculateMatchRate } from "../matching";
 
 const chatBubbleImg =
   "https://images.unsplash.com/photo-1662974770404-468fd9660389?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGF0JTIwYnViYmxlJTIwbWVzc2FnZSUyMGNvbG9yZnVsJTIwM2R8ZW58MXx8fHwxNzc4MzE2MjAyfDA&ixlib=rb-4.1.0&q=80&w=400";
@@ -10,9 +11,16 @@ const analyticsImg =
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { currentUser, chatThreads } = useAppData();
+  const { currentUser, chatThreads, users } = useAppData();
   const savedAvatar = getPicUrl(currentUser.avatarPath);
-  const messageCount = chatThreads.reduce((total, thread) => total + thread.messages.length, 0);
+  const unreadMessageCount = chatThreads.reduce(
+    (total, thread) => total + (thread.unreadCountByUserId[currentUser.id] ?? 0),
+    0,
+  );
+  const matchRate = calculateMatchRate(
+    currentUser,
+    users.filter((user) => user.id !== currentUser.id && user.role === "user"),
+  );
   const stats = [
     {
       label: "コネクション",
@@ -28,8 +36,8 @@ export function HomePage() {
       ),
     },
     {
-      label: "メッセージ",
-      value: String(messageCount),
+      label: "未読メッセージ",
+      value: String(unreadMessageCount),
       path: "/chat",
       bg: "linear-gradient(135deg, #FFF0E8 0%, #FFE0C8 100%)",
       icon: chatBubbleImg,
@@ -37,7 +45,7 @@ export function HomePage() {
     },
     {
       label: "マッチ率",
-      value: `${currentUser.matchRate}%`,
+      value: `${matchRate}%`,
       path: "/search",
       bg: "linear-gradient(135deg, #F3E8FF 0%, #E0D0FF 100%)",
       icon: analyticsImg,

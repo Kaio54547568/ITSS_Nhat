@@ -19,6 +19,9 @@ interface VerificationRequest {
   avatarEmoji: string;
   avatarColor: string;
   idCardImage: string;
+  idCardFrontImage: string;
+  idCardBackImage: string;
+  idCardSelfieImage: string;
   profileSnapshot: Record<string, unknown> | null;
 }
 
@@ -40,7 +43,7 @@ function displayVerificationId(request: VerificationRequest) {
   return request.id.startsWith("verification_") ? request.userId : request.id;
 }
 
-function DocumentImageCard({ imagePath }: { imagePath: string }) {
+function DocumentImageCard({ label, imagePath }: { label: string; imagePath: string }) {
   const imageUrl = getPicUrl(imagePath);
   return (
     <div
@@ -48,7 +51,7 @@ function DocumentImageCard({ imagePath }: { imagePath: string }) {
       style={{ border: "1.5px solid #F5DDD0", background: "#FFF8F4", minHeight: 130 }}
     >
       <div className="px-3 py-2 border-b" style={{ borderColor: "#F5DDD0" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.82rem", color: "#555" }}>本人確認書類</span>
+        <span style={{ fontWeight: 600, fontSize: "0.82rem", color: "#555" }}>{label}</span>
       </div>
       <div className="p-2">
         <div
@@ -57,7 +60,7 @@ function DocumentImageCard({ imagePath }: { imagePath: string }) {
         >
           {imageUrl ? (
             <>
-              <img src={imageUrl} alt="本人確認書類" className="w-full h-full object-contain" />
+              <img src={imageUrl} alt={label} className="w-full h-full object-contain" />
               <a
                 href={imageUrl}
                 target="_blank"
@@ -90,7 +93,8 @@ export function AdminVerificationPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("verification_requests")
-        .select("id, user_id, user_name, email, birth_date, application_date, submitted_at, status, avatar_emoji, avatar_color, id_card_image, profile_snapshot")
+        .select("id, user_id, user_name, email, birth_date, application_date, submitted_at, status, avatar_emoji, avatar_color, id_card_image, id_card_front_image, id_card_back_image, id_card_selfie_image, profile_snapshot")
+        .eq("status", "確認待ち")
         .order("created_at", { ascending: false });
       if (error) {
         console.error("Failed to load verification requests", error);
@@ -107,6 +111,9 @@ export function AdminVerificationPage() {
         avatarEmoji: request.avatar_emoji ?? "👤",
         avatarColor: request.avatar_color ?? "#F97316",
         idCardImage: request.id_card_image ?? "",
+        idCardFrontImage: request.id_card_front_image ?? request.id_card_image ?? "",
+        idCardBackImage: request.id_card_back_image ?? "",
+        idCardSelfieImage: request.id_card_selfie_image ?? "",
         profileSnapshot: (request.profile_snapshot as Record<string, unknown> | null) ?? null,
       }));
       setRequests(mapped);
@@ -187,7 +194,11 @@ export function AdminVerificationPage() {
       });
       if (notificationError) throw notificationError;
 
-      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, verificationStatus: status } : r)));
+      setRequests((prev) => {
+        const next = prev.filter((item) => item.id !== id);
+        setSelectedId(next[0]?.id ?? "");
+        return next;
+      });
       setFeedback("本人確認の結果をユーザーへ通知しました");
     })()
       .catch((error) => {
@@ -219,7 +230,7 @@ export function AdminVerificationPage() {
       <div className="flex h-[calc(100vh-53px)]">
         {/* ── Left panel ── */}
         <div
-          className="flex flex-col w-[420px] flex-shrink-0 h-full"
+          className="hidden xl:flex flex-col w-[420px] flex-shrink-0 h-full"
           style={{ borderRight: "1.5px solid #F5DDD0", background: "white" }}
         >
           {/* Panel title */}
@@ -267,6 +278,11 @@ export function AdminVerificationPage() {
 
           {/* Rows */}
           <div className="flex-1 overflow-y-auto">
+            {paged.length === 0 && (
+              <div className="px-4 py-10 text-center" style={{ color: "#AAAAAA", fontSize: "0.9rem" }}>
+                確認待ちの申請はありません
+              </div>
+            )}
             {paged.map((r) => {
               const st = statusStyle[r.verificationStatus] ?? { color: "#F97316", bg: "#FFF0E8" };
               const isSelected = r.id === selectedId;
@@ -381,6 +397,7 @@ export function AdminVerificationPage() {
                   ["電話", snapshotText("phone")],
                   ["メール", snapshotText("email", selected.email)],
                   ["所在地", snapshotText("address")],
+                  ["国", snapshotText("countryCode") === "JP" ? "日本" : snapshotText("countryCode") === "VN" ? "ベトナム" : ""],
                   ["生年月日", snapshotText("birthDate", selected.birthDate)],
                   ["性別", snapshotText("gender")],
                   ["自己紹介", snapshotText("bio")],
@@ -398,8 +415,10 @@ export function AdminVerificationPage() {
               </div>
             </div>
 
-            <div className="mb-6">
-              <DocumentImageCard imagePath={selected.idCardImage} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-6">
+              <DocumentImageCard label="CCCD 表面" imagePath={selected.idCardFrontImage || selected.idCardImage} />
+              <DocumentImageCard label="CCCD 裏面" imagePath={selected.idCardBackImage} />
+              <DocumentImageCard label="CCCDを持った自撮り" imagePath={selected.idCardSelfieImage} />
             </div>
 
             {/* Action buttons */}
@@ -428,6 +447,11 @@ export function AdminVerificationPage() {
                 利用停止
               </button>
             </div>
+          </div>
+        )}
+        {!selected && (
+          <div className="flex-1 flex items-center justify-center px-6 py-5" style={{ background: "#FEF0E8", color: "#AAAAAA", fontWeight: 700 }}>
+            確認待ちの申請はありません
           </div>
         )}
       </div>

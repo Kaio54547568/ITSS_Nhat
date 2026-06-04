@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
-import { Calendar, Check, Edit2, ImagePlus, Plus, Save, ShieldCheck, X } from "lucide-react";
+import { Calendar, Check, Edit2, ImagePlus, Plus, ShieldCheck, X } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { getPicUrl, imageFileName, uploadPic } from "../storage/pics";
 import { useAppData } from "../store/AppDataContext";
 import { supabase } from "../supabase";
 
 const PASSWORD_MASK = "••••••••••••••••••••••";
+const LANGUAGE_OPTIONS = ["ベトナム語", "英語", "日本語"];
+const PERSONALITY_OPTIONS = [
+  "外向的",
+  "内向的",
+  "アクティブ",
+  "落ち着いている",
+  "のんびり",
+  "ユーモアがある",
+  "真面目",
+  "思いやりがある",
+  "好奇心旺盛",
+  "聞き上手",
+];
 
 function FieldRow({
   label,
@@ -215,27 +228,59 @@ function OptionPicker({
   );
 }
 
+function VerificationUploadCard({
+  label,
+  preview,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  preview: string;
+  disabled: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label
+      className="rounded-2xl overflow-hidden flex flex-col"
+      style={{
+        background: preview ? "#FFF8F4" : "white",
+        border: `1.5px ${preview ? "solid" : "dashed"} ${disabled ? "#E0D5CF" : "#F97316"}`,
+        cursor: disabled ? "default" : "pointer",
+      }}
+    >
+      <input type="file" accept="image/*" className="hidden" disabled={disabled} onChange={onChange} />
+      <span className="px-3 py-2" style={{ color: "#555", fontSize: "0.8rem", fontWeight: 700 }}>
+        {label}
+      </span>
+      <span className="h-36 flex items-center justify-center overflow-hidden" style={{ borderTop: "1px solid #F5DDD0" }}>
+        {preview ? <img src={preview} alt={label} className="w-full h-full object-cover" /> : <ImagePlus size={26} style={{ color: "#F0D5C8" }} />}
+      </span>
+    </label>
+  );
+}
+
 export function ProfilePage() {
   const { currentUser, refreshData } = useAppData();
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const idCardInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState(() => getPicUrl(currentUser.avatarPath));
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
-  const [idCardPreview, setIdCardPreview] = useState(() => getPicUrl(currentUser.idCardImagePath));
-  const [savedIdCard, setSavedIdCard] = useState(() => getPicUrl(currentUser.idCardImagePath));
-  const [isIdCardEditing, setIsIdCardEditing] = useState(false);
-  const [hasNewIdCard, setHasNewIdCard] = useState(false);
-  const [openPicker, setOpenPicker] = useState<"languages" | "interests" | null>(null);
-  const [languageOptions, setLanguageOptions] = useState<string[]>([]);
+  const [idCardPreview, setIdCardPreview] = useState(() => getPicUrl(currentUser.idCardFrontImagePath));
+  const [idCardBackFile, setIdCardBackFile] = useState<File | null>(null);
+  const [idCardBackPreview, setIdCardBackPreview] = useState(() => getPicUrl(currentUser.idCardBackImagePath));
+  const [idCardSelfieFile, setIdCardSelfieFile] = useState<File | null>(null);
+  const [idCardSelfiePreview, setIdCardSelfiePreview] = useState(() => getPicUrl(currentUser.idCardSelfieImagePath));
+  const [openPicker, setOpenPicker] = useState<"languages" | "interests" | "personality" | null>(null);
+  const [languageOptions, setLanguageOptions] = useState<string[]>(LANGUAGE_OPTIONS);
   const [interestOptions, setInterestOptions] = useState<string[]>([]);
 
   const [name, setName] = useState(currentUser.name);
   const [phone, setPhone] = useState(currentUser.phone);
   const [email, setEmail] = useState(currentUser.email);
   const [location, setLocation] = useState(currentUser.address);
+  const [countryCode, setCountryCode] = useState<"VN" | "JP">(currentUser.countryCode);
   const [birthDate, setBirthDate] = useState(currentUser.birthDate);
   const [gender, setGender] = useState<"M" | "F">(currentUser.gender === "F" ? "F" : "M");
   const [password, setPassword] = useState(PASSWORD_MASK);
@@ -243,21 +288,22 @@ export function ProfilePage() {
   const [bio, setBio] = useState(currentUser.bio);
   const [languages, setLanguages] = useState<string[]>([...currentUser.languages]);
   const [interests, setInterests] = useState<string[]>([...currentUser.interests]);
-  const [personality, setPersonality] = useState(currentUser.personality.join(", "));
+  const [personality, setPersonality] = useState<string[]>([...currentUser.personality]);
 
   const isVerified = currentUser.verificationStatus === "承認済み" || currentUser.verificationStatus === "認証済み";
   const canEditProtectedFields = isEditing && !isVerified;
-  const canEditIdCard = !isVerified && (!savedIdCard || isIdCardEditing);
-  const personalityItems = personality
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const canEditIdCard = !isVerified && currentUser.verificationStatus !== "確認待ち";
+  const personalityItems = personality;
   const isProfileComplete =
-    [name, phone, email, location, birthDate, gender, bio].every((value) => value.trim().length > 0) &&
+    [name, phone, email, location, birthDate, gender, bio, countryCode].every((value) => value.trim().length > 0) &&
     languages.length > 0 &&
     interests.length > 0 &&
     personalityItems.length > 0;
-  const hasIdCardImage = Boolean(idCardFile || currentUser.idCardImagePath || savedIdCard);
+  const hasIdCardImage = Boolean(
+    (idCardFile || currentUser.idCardFrontImagePath) &&
+    (idCardBackFile || currentUser.idCardBackImagePath) &&
+    (idCardSelfieFile || currentUser.idCardSelfieImagePath),
+  );
   const canSubmitVerification =
     !isVerified && currentUser.verificationStatus !== "確認待ち" && isProfileComplete && hasIdCardImage;
 
@@ -266,13 +312,13 @@ export function ProfilePage() {
       const { data, error } = await supabase
         .from("reference_options")
         .select("kind, value")
-        .in("kind", ["language", "interest"])
+        .in("kind", ["interest"])
         .order("sort_order", { ascending: true });
       if (error) {
         console.error("Failed to load profile options", error);
         return;
       }
-      setLanguageOptions((data ?? []).filter((option) => option.kind === "language").map((option) => option.value));
+      setLanguageOptions(LANGUAGE_OPTIONS);
       setInterestOptions((data ?? []).filter((option) => option.kind === "interest").map((option) => option.value));
     })();
   }, []);
@@ -283,21 +329,22 @@ export function ProfilePage() {
     setPhone(currentUser.phone);
     setEmail(currentUser.email);
     setLocation(currentUser.address);
+    setCountryCode(currentUser.countryCode);
     setBirthDate(currentUser.birthDate);
     setGender(currentUser.gender === "F" ? "F" : "M");
     setPassword(PASSWORD_MASK);
     setBio(currentUser.bio);
     setLanguages([...currentUser.languages]);
     setInterests([...currentUser.interests]);
-    setPersonality(currentUser.personality.join(", "));
+    setPersonality([...currentUser.personality]);
     setAvatarFile(null);
     setAvatarPreview(getPicUrl(currentUser.avatarPath));
     setIdCardFile(null);
-    const storedIdCard = getPicUrl(currentUser.idCardImagePath);
-    setSavedIdCard(storedIdCard);
-    setIdCardPreview(storedIdCard);
-    setHasNewIdCard(false);
-    setIsIdCardEditing(false);
+    setIdCardPreview(getPicUrl(currentUser.idCardFrontImagePath));
+    setIdCardBackFile(null);
+    setIdCardBackPreview(getPicUrl(currentUser.idCardBackImagePath));
+    setIdCardSelfieFile(null);
+    setIdCardSelfiePreview(getPicUrl(currentUser.idCardSelfieImagePath));
   }, [currentUser, isEditing]);
 
   const handleEditToggle = async () => {
@@ -308,15 +355,14 @@ export function ProfilePage() {
         phone: isVerified ? currentUser.phone : phone,
         email: isVerified ? currentUser.email : email.trim() === "" ? null : email,
         address: location,
+        country_code: countryCode,
+        nationality: countryCode === "JP" ? "日本" : "ベトナム",
         birth_date: birthDate,
         gender,
         bio,
         languages,
         interests,
-        personality: personality
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
+        personality,
       };
       if (avatarFile) {
         nextProfile.avatar = await uploadPic(avatarFile, `avatars/${currentUser.id}`, imageFileName(avatarFile, "avatar"));
@@ -359,33 +405,24 @@ export function ProfilePage() {
       const nextImage = typeof reader.result === "string" ? reader.result : "";
       if (!nextImage) return;
       setIdCardPreview(nextImage);
-      setHasNewIdCard(true);
     };
     reader.readAsDataURL(file);
   };
 
-  const saveIdCardImage = async () => {
-    if (!hasNewIdCard || !idCardFile) return;
-    const path = await uploadPic(idCardFile, `id-cards/${currentUser.id}`, imageFileName(idCardFile, "id-card"));
-    const { error } = await supabase.from("profiles").update({ id_card_image: path }).eq("id", currentUser.id);
-    if (error) {
-      console.error("Failed to save ID card image", error);
-      return;
-    }
-    const imageUrl = getPicUrl(path);
-    setSavedIdCard(imageUrl);
-    setIdCardPreview(imageUrl);
-    setIdCardFile(null);
-    setHasNewIdCard(false);
-    setIsIdCardEditing(false);
-    await refreshData();
-  };
-
-  const cancelIdCardEdit = () => {
-    setIdCardPreview(savedIdCard);
-    setIdCardFile(null);
-    setHasNewIdCard(false);
-    setIsIdCardEditing(false);
+  const handleVerificationImageChange = (
+    event: ChangeEvent<HTMLInputElement>,
+    setFile: Dispatch<SetStateAction<File | null>>,
+    setPreview: Dispatch<SetStateAction<string>>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const nextImage = typeof reader.result === "string" ? reader.result : "";
+      if (nextImage) setPreview(nextImage);
+    };
+    reader.readAsDataURL(file);
   };
 
   const submitVerification = async () => {
@@ -395,25 +432,35 @@ export function ProfilePage() {
     if (avatarFile) {
       avatarPath = await uploadPic(avatarFile, `avatars/${currentUser.id}`, imageFileName(avatarFile, "avatar"));
     }
-    let idCardPath = currentUser.idCardImagePath;
+    let idCardPath = currentUser.idCardFrontImagePath;
     if (idCardFile) {
-      idCardPath = await uploadPic(idCardFile, `id-cards/${currentUser.id}`, `${Date.now()}-${imageFileName(idCardFile, "id-card")}`);
+      idCardPath = await uploadPic(idCardFile, `id-cards/${currentUser.id}`, `${Date.now()}-${imageFileName(idCardFile, "front")}`);
     }
-    if (!idCardPath) {
+    let idCardBackPath = currentUser.idCardBackImagePath;
+    if (idCardBackFile) {
+      idCardBackPath = await uploadPic(idCardBackFile, `id-cards/${currentUser.id}`, `${Date.now()}-${imageFileName(idCardBackFile, "back")}`);
+    }
+    let idCardSelfiePath = currentUser.idCardSelfieImagePath;
+    if (idCardSelfieFile) {
+      idCardSelfiePath = await uploadPic(idCardSelfieFile, `id-cards/${currentUser.id}`, `${Date.now()}-${imageFileName(idCardSelfieFile, "selfie")}`);
+    }
+    if (!idCardPath || !idCardBackPath || !idCardSelfiePath) {
       setIsSaving(false);
       return;
     }
-    const imageUrl = getPicUrl(idCardPath);
-    setSavedIdCard(imageUrl);
-    setIdCardPreview(imageUrl);
+    setIdCardPreview(getPicUrl(idCardPath));
+    setIdCardBackPreview(getPicUrl(idCardBackPath));
+    setIdCardSelfiePreview(getPicUrl(idCardSelfiePath));
     setIdCardFile(null);
-    setHasNewIdCard(false);
+    setIdCardBackFile(null);
+    setIdCardSelfieFile(null);
     const submittedAt = new Date().toISOString();
     const profileSnapshot = {
       name,
       phone,
       email,
       address: location,
+      countryCode,
       birthDate,
       gender,
       bio,
@@ -422,12 +469,17 @@ export function ProfilePage() {
       personality: personalityItems,
       avatar: avatarPath,
       idCardImage: idCardPath,
+      idCardFrontImage: idCardPath,
+      idCardBackImage: idCardBackPath,
+      idCardSelfieImage: idCardSelfiePath,
     };
     const profileUpdate: Record<string, string | string[] | null> = {
       name,
       phone,
       email: email.trim() === "" ? null : email,
       address: location,
+      country_code: countryCode,
+      nationality: countryCode === "JP" ? "日本" : "ベトナム",
       birth_date: birthDate,
       gender,
       bio,
@@ -436,6 +488,9 @@ export function ProfilePage() {
       personality: personalityItems,
       avatar: avatarPath,
       id_card_image: idCardPath,
+      id_card_front_image: idCardPath,
+      id_card_back_image: idCardBackPath,
+      id_card_selfie_image: idCardSelfiePath,
       verification_status: "確認待ち",
       account_status: "未有効",
     };
@@ -455,6 +510,9 @@ export function ProfilePage() {
       submitted_at: submittedAt,
       application_date: submittedAt.slice(0, 10),
       id_card_image: idCardPath,
+      id_card_front_image: idCardPath,
+      id_card_back_image: idCardBackPath,
+      id_card_selfie_image: idCardSelfiePath,
       profile_snapshot: profileSnapshot,
       status: "確認待ち",
       avatar_emoji: currentUser.avatarEmoji,
@@ -562,6 +620,24 @@ export function ProfilePage() {
               <FieldRow label="電話" value={phone} onChange={setPhone} editable={canEditProtectedFields} />
               <FieldRow label="メール" value={email} onChange={setEmail} editable={canEditProtectedFields} type="email" />
               <FieldRow label="所在地" value={location} onChange={setLocation} editable={isEditing} />
+              <div className="flex items-center gap-3">
+                <span className="w-20 text-right flex-shrink-0" style={{ color: "#555", fontSize: "0.88rem" }}>国</span>
+                <select
+                  value={countryCode}
+                  onChange={(event) => setCountryCode(event.target.value as "VN" | "JP")}
+                  disabled={!isEditing}
+                  className="flex-1 px-4 py-2 rounded-full outline-none"
+                  style={{
+                    background: isEditing ? "#FFF8F4" : "#F2F2F2",
+                    border: `1.5px solid ${isEditing ? "#F97316" : "#E0D5CF"}`,
+                    color: isEditing ? "#333" : "#888",
+                    fontSize: "0.88rem",
+                  }}
+                >
+                  <option value="VN">ベトナム</option>
+                  <option value="JP">日本</option>
+                </select>
+              </div>
 
               <div className="flex items-center gap-3">
                 <span className="w-20 text-right flex-shrink-0" style={{ color: "#555", fontSize: "0.88rem" }}>
@@ -613,7 +689,16 @@ export function ProfilePage() {
                 onAdd={(value) => addUnique(value, setInterests)}
                 onRemove={(value) => setInterests((prev) => prev.filter((item) => item !== value))}
               />
-              <FieldRow label="性格" value={personality} onChange={setPersonality} editable={isEditing} />
+              <OptionPicker
+                label="性格"
+                values={personality}
+                options={PERSONALITY_OPTIONS}
+                editable={isEditing}
+                isOpen={openPicker === "personality"}
+                onToggleOpen={() => setOpenPicker((prev) => (prev === "personality" ? null : "personality"))}
+                onAdd={(value) => addUnique(value, setPersonality)}
+                onRemove={(value) => setPersonality((prev) => prev.filter((item) => item !== value))}
+              />
 
               <div className="pt-4 mt-2 border-t" style={{ borderColor: "#F5DDD0" }}>
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -627,26 +712,21 @@ export function ProfilePage() {
                   </div>
                 </div>
 
-                <input ref={idCardInputRef} type="file" accept="image/*" className="hidden" onChange={handleIdCardChange} />
-                <button
-                  type="button"
-                  onClick={() => canEditIdCard && idCardInputRef.current?.click()}
-                  disabled={!canEditIdCard}
-                  className="w-full rounded-2xl flex items-center justify-center overflow-hidden transition-all"
-                  style={{
-                    height: 168,
-                    background: idCardPreview ? "#FFF8F4" : "white",
-                    border: `1.5px ${idCardPreview ? "solid" : "dashed"} ${canEditIdCard ? "#F97316" : "#E0D5CF"}`,
-                    cursor: canEditIdCard ? "pointer" : "default",
-                  }}
-                  aria-label="本人確認書類の画像を選択"
-                >
-                  {idCardPreview ? (
-                    <img src={idCardPreview} alt="本人確認書類" className="w-full h-full object-cover" />
-                  ) : (
-                    canEditIdCard && <ImagePlus size={28} style={{ color: "#F0D5C8" }} />
-                  )}
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <VerificationUploadCard label="CCCD 表面をアップロード" preview={idCardPreview} disabled={!canEditIdCard} onChange={handleIdCardChange} />
+                  <VerificationUploadCard
+                    label="CCCD 裏面をアップロード"
+                    preview={idCardBackPreview}
+                    disabled={!canEditIdCard}
+                    onChange={(event) => handleVerificationImageChange(event, setIdCardBackFile, setIdCardBackPreview)}
+                  />
+                  <VerificationUploadCard
+                    label="CCCDを持った自撮りをアップロード"
+                    preview={idCardSelfiePreview}
+                    disabled={!canEditIdCard}
+                    onChange={(event) => handleVerificationImageChange(event, setIdCardSelfieFile, setIdCardSelfiePreview)}
+                  />
+                </div>
 
                 <div className="mt-3 flex justify-end gap-2">
                   {isVerified ? (
@@ -658,46 +738,6 @@ export function ProfilePage() {
                     >
                       認証済み
                     </button>
-                  ) : isIdCardEditing ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={cancelIdCardEdit}
-                        className="px-5 py-2 rounded-full transition-all hover:opacity-80"
-                        style={{ background: "white", color: "#555", border: "1.5px solid #E0D5CF", fontWeight: 700, fontSize: "0.9rem" }}
-                      >
-                        キャンセル
-                      </button>
-                      <button
-                        type="button"
-                        onClick={saveIdCardImage}
-                        disabled={!hasNewIdCard}
-                        className="inline-flex items-center gap-2 px-5 py-2 rounded-full transition-all hover:opacity-90 disabled:cursor-not-allowed"
-                        style={{ background: hasNewIdCard ? "#F97316" : "#F0D5C8", color: "white", fontWeight: 700, fontSize: "0.9rem" }}
-                      >
-                        <Save size={15} /> 画像を保存
-                      </button>
-                    </>
-                  ) : savedIdCard ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={submitVerification}
-                        disabled={!canSubmitVerification || isSaving}
-                        className="px-5 py-2 rounded-full transition-all hover:opacity-90 disabled:cursor-not-allowed"
-                        style={{ background: canSubmitVerification ? "#F97316" : "#F0D5C8", color: "white", fontWeight: 700, fontSize: "0.9rem" }}
-                      >
-                        {currentUser.verificationStatus === "確認待ち" ? "確認待ち" : "本人確認を申請"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsIdCardEditing(true)}
-                        className="px-5 py-2 rounded-full transition-all hover:opacity-90"
-                        style={{ background: "white", color: "#F97316", border: "1.5px solid #F97316", fontWeight: 700, fontSize: "0.9rem" }}
-                      >
-                        修正
-                      </button>
-                    </>
                   ) : (
                     <button
                       type="button"
@@ -706,13 +746,13 @@ export function ProfilePage() {
                       className="px-5 py-2 rounded-full transition-all hover:opacity-90 disabled:cursor-not-allowed"
                       style={{ background: canSubmitVerification ? "#F97316" : "#F0D5C8", color: "white", fontWeight: 700, fontSize: "0.9rem" }}
                     >
-                      本人確認を申請
+                      {currentUser.verificationStatus === "確認待ち" ? "確認待ち" : "本人確認を申請"}
                     </button>
                   )}
                 </div>
                 {!isVerified && !canSubmitVerification && currentUser.verificationStatus !== "確認待ち" && (
                   <p className="mt-2 text-right" style={{ color: "#C78A70", fontSize: "0.78rem" }}>
-                    申請にはプロフィール全項目と本人確認書類の画像が必要です。
+                    申請にはプロフィール全項目と3枚の本人確認画像が必要です。
                   </p>
                 )}
               </div>

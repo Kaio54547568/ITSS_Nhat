@@ -17,8 +17,6 @@ function notificationText(notification: AppNotification, fromUser?: AppUser) {
       return `${name}さんから新しいメッセージが届きました`;
     case "verification":
       return notification.message || "アカウント認証の結果が届きました";
-    case "review":
-      return notification.message || `${name}さんから評価情報が届きました`;
     case "report":
     case "account_locked":
       return notification.message;

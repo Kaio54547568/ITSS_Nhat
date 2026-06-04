@@ -76,6 +76,7 @@ export function AdminReportsPage() {
       const { data, error } = await supabase
         .from("reports")
         .select("id, reporter_name, target_name, target_user_id, report_date, status, reason, detail, evidence_image")
+        .eq("status", "確認待ち")
         .order("report_date", { ascending: false });
       if (error) {
         console.error("Failed to load reports", error);
@@ -112,6 +113,14 @@ export function AdminReportsPage() {
     setReports((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
   };
 
+  const removeProcessedReport = (id: string) => {
+    setReports((current) => {
+      const next = current.filter((report) => report.id !== id);
+      setSelectedId(next[0]?.id ?? "");
+      return next;
+    });
+  };
+
   const ignoreReport = async (id: string) => {
     const report = reports.find((item) => item.id === id);
     if (!report || report.status !== "確認待ち") return;
@@ -121,7 +130,9 @@ export function AdminReportsPage() {
     if (error) {
       console.error("Failed to ignore report", error);
       setReportStatus(id, "確認待ち");
+      return;
     }
+    removeProcessedReport(id);
   };
 
   const confirmReport = async (id: string) => {
@@ -184,13 +195,14 @@ export function AdminReportsPage() {
         created_at: new Date().toISOString(),
       });
     }
+    removeProcessedReport(id);
   };
 
   return (
     <AdminLayout>
       <div className="flex h-[calc(100vh-53px)]">
         <div
-          className="flex flex-col w-[440px] flex-shrink-0 h-full"
+          className="hidden xl:flex flex-col w-[440px] flex-shrink-0 h-full"
           style={{ borderRight: "1.5px solid #F5DDD0", background: "white" }}
         >
           <div className="px-4 pt-4 pb-2">
@@ -235,6 +247,11 @@ export function AdminReportsPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {paged.length === 0 && (
+              <div className="px-4 py-10 text-center" style={{ color: "#AAAAAA", fontSize: "0.9rem" }}>
+                確認待ちの通報はありません
+              </div>
+            )}
             {paged.map((r) => {
               const st = statusStyle[r.status];
               const isSelected = r.id === selectedId;
@@ -362,6 +379,11 @@ export function AdminReportsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+        {!selected && (
+          <div className="flex-1 flex items-center justify-center px-6 py-5" style={{ background: "#FEF0E8", color: "#AAAAAA", fontWeight: 700 }}>
+            確認待ちの通報はありません
           </div>
         )}
       </div>

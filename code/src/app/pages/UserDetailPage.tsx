@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Flag, MapPin, MessageCircle, Star } from "lucide-react";
+import { ArrowLeft, Flag, MapPin, MessageCircle } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { useAppData } from "../store/AppDataContext";
 
@@ -84,10 +84,6 @@ export function UserDetailPage() {
                   <button disabled={!thread} onClick={() => thread && navigate(`/chat/${user.profileId}`)} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60" style={{ background: "#F97316", color: "white", fontWeight: 700 }}>
                     <MessageCircle size={17} />
                     チャット
-                  </button>
-                  <button onClick={() => navigate(`/review/${user.profileId}`)} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all hover:opacity-90 active:scale-95" style={{ background: "white", color: "#F97316", border: "1.5px solid #F97316", fontWeight: 700 }}>
-                    <Star size={17} />
-                    評価
                   </button>
                   <button onClick={() => navigate(`/report/${user.profileId}`)} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full transition-all hover:opacity-90 active:scale-95" style={{ background: "white", color: "#DC2626", border: "1.5px solid #FECACA", fontWeight: 700 }}>
                     <Flag size={17} />

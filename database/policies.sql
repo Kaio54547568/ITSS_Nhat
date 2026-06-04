@@ -23,7 +23,6 @@ declare
     'call_sessions',
     'call_signals',
     'reports',
-    'reviews',
     'verification_requests',
     'reference_options'
   ];

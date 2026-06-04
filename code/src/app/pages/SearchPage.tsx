@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronDown, MapPin, User } from "lucide-react";
+import { useState } from "react";
+import { MapPin, User } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { ProfilePreviewModal } from "../components/ProfilePreviewModal";
 import { useAppData, type AppUser } from "../store/AppDataContext";
@@ -7,8 +7,6 @@ import { useAppData, type AppUser } from "../store/AppDataContext";
 export function SearchPage() {
   const [ageFrom, setAgeFrom] = useState("");
   const [ageTo, setAgeTo] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState<"" | "VN" | "JP">("");
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
   const {
     currentUser,
@@ -20,21 +18,12 @@ export function SearchPage() {
     getFriendshipStatus,
   } = useAppData();
 
-  const interestFilters = useMemo(() => Array.from(new Set(currentUser.interests)), [currentUser.interests]);
   const minAge = ageFrom.trim() === "" ? undefined : Number(ageFrom);
   const maxAge = ageTo.trim() === "" ? undefined : Number(ageTo);
   const filtered = filterUsers({
     minAge: Number.isFinite(minAge) ? minAge : undefined,
     maxAge: Number.isFinite(maxAge) ? maxAge : undefined,
-    selectedCountry,
-    selectedInterests,
   });
-
-  const toggleInterest = (interest: string) => {
-    setSelectedInterests((prev) =>
-      prev.includes(interest) ? prev.filter((item) => item !== interest) : [...prev, interest],
-    );
-  };
 
   const getRequestButton = (userId: string) => {
     const status = getFriendshipStatus(userId);
@@ -77,69 +66,26 @@ export function SearchPage() {
               />
             </div>
 
-            <div className="relative ml-auto">
-              <select
-                value={selectedCountry}
-                onChange={(event) => setSelectedCountry(event.target.value as "" | "VN" | "JP")}
-                className="appearance-none rounded-full pl-4 pr-9 py-1.5 text-sm outline-none"
-                style={{
-                  background: selectedCountry ? "#FFF0E8" : "white",
-                  border: `1.5px solid ${selectedCountry ? "#F97316" : "#F0D5C8"}`,
-                  color: selectedCountry ? "#E8641A" : "#555",
-                  fontWeight: selectedCountry ? 600 : 400,
-                  minWidth: 130,
-                }}
-                aria-label="国で絞り込み"
-              >
-                <option value="">すべての国</option>
-                <option value="VN">ベトナム</option>
-                <option value="JP">日本</option>
-              </select>
-              <ChevronDown
-                size={15}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-                style={{ color: selectedCountry ? "#F97316" : "#AAAAAA" }}
-              />
-            </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap mb-4">
-            <button
-              onClick={() => setSelectedInterests([])}
-              className="px-4 py-1.5 rounded-full text-sm transition-all duration-150"
-              style={{
-                background: selectedInterests.length === 0 ? "#F97316" : "white",
-                color: selectedInterests.length === 0 ? "white" : "#555",
-                border: `1.5px solid ${selectedInterests.length === 0 ? "#F97316" : "#E8E0DC"}`,
-                fontWeight: selectedInterests.length === 0 ? 600 : 400,
-              }}
-            >
-              全体
-            </button>
-            {interestFilters.length === 0 ? (
-              <span className="px-3 py-1.5 text-sm" style={{ color: "#999" }}>
-                プロフィールで趣味を追加してください
-              </span>
-            ) : (
-              interestFilters.map((interest) => {
-                const active = selectedInterests.includes(interest);
-                return (
-                  <button
-                    key={interest}
-                    onClick={() => toggleInterest(interest)}
-                    className="px-4 py-1.5 rounded-full text-sm transition-all duration-150"
-                    style={{
-                      background: active ? "#F97316" : "white",
-                      color: active ? "white" : "#555",
-                      border: `1.5px solid ${active ? "#F97316" : "#E8E0DC"}`,
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    {interest}
-                  </button>
-                );
-              })
-            )}
+          <div className="flex flex-col gap-2 mb-4">
+            {[
+              ["興味", currentUser.interests],
+              ["性格", currentUser.personality],
+            ].map(([label, values]) => (
+              <div key={label as string} className="flex items-center gap-2 flex-wrap">
+                <span className="px-4 py-1.5 rounded-full text-sm" style={{ background: "#F97316", color: "white", fontWeight: 700 }}>
+                  {label as string}
+                </span>
+                {(values as string[]).length > 0 ? (values as string[]).map((value) => (
+                  <span key={value} className="px-4 py-1.5 rounded-full text-sm" style={{ background: "white", color: "#555", border: "1.5px solid #E8E0DC" }}>
+                    {value}
+                  </span>
+                )) : (
+                  <span className="px-3 py-1.5 text-sm" style={{ color: "#999" }}>プロフィールで設定してください</span>
+                )}
+              </div>
+            ))}
           </div>
 
           <h2 className="mb-3" style={{ color: "#F97316", fontSize: "1.4rem", fontWeight: 700 }}>
@@ -162,14 +108,11 @@ export function SearchPage() {
                     style={{ background: "white", border: "1.5px solid #F5DDD0" }}
                   >
                     <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center text-2xl flex-shrink-0 relative"
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-2xl flex-shrink-0"
                       style={{ background: user.avatarColor }}
                       aria-label={`${user.name}のプロフィールを見る`}
                     >
                       <span>{user.avatarEmoji}</span>
-                      <span className="absolute bottom-0 right-0 text-xs" style={{ lineHeight: 1, fontWeight: 700 }}>
-                        {user.countryCode}
-                      </span>
                     </div>
 
                     <div className="flex-1 min-w-0">

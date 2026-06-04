@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getSession } from "../data/auth";
+import { rankCompatibleUsers } from "../matching";
 import { supabase } from "../supabase";
 
 export type UserStatus = "online" | "offline";
@@ -9,7 +10,6 @@ export type NotificationType =
   | "friend_request_accepted"
   | "friend_request_rejected"
   | "message"
-  | "review"
   | "report"
   | "verification"
   | "account_locked";
@@ -48,6 +48,9 @@ export interface AppUser {
   accountStatus: string;
   verificationStatus: string;
   idCardImagePath: string;
+  idCardFrontImagePath: string;
+  idCardBackImagePath: string;
+  idCardSelfieImagePath: string;
   gallery: string[];
   friends: string[];
 }
@@ -93,8 +96,6 @@ export interface ChatThread {
 interface FilterUsersInput {
   minAge?: number;
   maxAge?: number;
-  selectedInterests?: string[];
-  selectedCountry?: "VN" | "JP" | "";
 }
 
 interface AppDataContextValue {
@@ -141,6 +142,9 @@ type ProfileRow = {
   birth_date: string | null;
   avatar: string | null;
   id_card_image: string | null;
+  id_card_front_image: string | null;
+  id_card_back_image: string | null;
+  id_card_selfie_image: string | null;
   avatar_color: string | null;
   avatar_emoji: string | null;
   online: boolean | null;
@@ -220,6 +224,9 @@ function mapProfile(row: ProfileRow, friends: string[]): AppUser {
     accountStatus: row.account_status ?? "有効",
     verificationStatus: row.verification_status ?? "",
     idCardImagePath: row.id_card_image ?? "",
+    idCardFrontImagePath: row.id_card_front_image ?? row.id_card_image ?? "",
+    idCardBackImagePath: row.id_card_back_image ?? "",
+    idCardSelfieImagePath: row.id_card_selfie_image ?? "",
     gallery: row.gallery ?? [],
     friends,
   };
@@ -261,6 +268,9 @@ function fallbackUser(users: AppUser[]): AppUser {
       accountStatus: "有効",
       verificationStatus: "",
       idCardImagePath: "",
+      idCardFrontImagePath: "",
+      idCardBackImagePath: "",
+      idCardSelfieImagePath: "",
       gallery: [],
       friends: [],
     }
@@ -674,8 +684,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   );
 
   const filterUsers = useCallback(
-    ({ minAge, maxAge, selectedInterests = [], selectedCountry = "" }: FilterUsersInput) =>
-      data.users.filter((user) => {
+    ({ minAge, maxAge }: FilterUsersInput) => {
+      const candidates = data.users.filter((user) => {
         if (user.role !== "user" || user.id === currentUser.id) return false;
         if (user.accountStatus !== "有効") return false;
         if (user.verificationStatus !== "認証済み" && user.verificationStatus !== "承認済み") return false;
@@ -686,14 +696,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             request.toUserId === currentUser.id,
         );
         if (currentUser.friends.includes(user.id) && !hasIncomingPendingRequest) return false;
-        if (minAge !== undefined && user.age < minAge) return false;
-        if (maxAge !== undefined && user.age > maxAge) return false;
-        if (selectedCountry && user.countryCode !== selectedCountry) return false;
-        if (selectedInterests.length > 0 && !user.interests.some((interest) => selectedInterests.includes(interest))) {
-          return false;
-        }
         return true;
-      }),
+      });
+      return rankCompatibleUsers(currentUser, candidates, { minAge, maxAge });
+    },
     [currentUser.friends, currentUser.id, data.friendRequests, data.users],
   );
 

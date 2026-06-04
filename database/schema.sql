@@ -38,6 +38,9 @@ create table if not exists profiles (
   birth_date text,
   avatar text,
   id_card_image text,
+  id_card_front_image text,
+  id_card_back_image text,
+  id_card_selfie_image text,
   avatar_color text,
   avatar_emoji text,
   online boolean not null default false,
@@ -100,7 +103,7 @@ create table if not exists friend_requests (
 create table if not exists notifications (
   id text primary key,
   user_id text not null references profiles(id) on delete cascade,
-  type text not null check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'review', 'report', 'verification', 'account_locked')),
+  type text not null check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'report', 'verification', 'account_locked')),
   from_user_id text references profiles(id) on delete set null,
   request_id text references friend_requests(id) on delete set null,
   thread_id text,
@@ -111,10 +114,11 @@ create table if not exists notifications (
 
 do $$
 begin
+  delete from notifications where type = 'review';
   alter table notifications drop constraint if exists notifications_type_check;
   alter table notifications
     add constraint notifications_type_check
-    check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'review', 'report', 'verification', 'account_locked'));
+    check (type in ('friend_request', 'friend_request_accepted', 'friend_request_rejected', 'message', 'report', 'verification', 'account_locked'));
 end;
 $$;
 
@@ -264,15 +268,6 @@ after insert or update of status, target_user_id or delete on reports
 for each row
 execute function reports_refresh_confirmed_count();
 
-create table if not exists reviews (
-  id uuid primary key default gen_random_uuid(),
-  reviewer_user_id text references profiles(id) on delete set null,
-  target_user_id text references profiles(id) on delete cascade,
-  rating integer not null check (rating between 1 and 5),
-  feedback text,
-  submitted_at timestamptz not null default now()
-);
-
 create table if not exists verification_requests (
   id text primary key,
   user_id text references profiles(id) on delete set null,
@@ -282,6 +277,9 @@ create table if not exists verification_requests (
   submitted_at text,
   application_date date,
   id_card_image text,
+  id_card_front_image text,
+  id_card_back_image text,
+  id_card_selfie_image text,
   profile_snapshot jsonb,
   status text not null,
   avatar_emoji text,
@@ -316,9 +314,17 @@ create index if not exists verification_requests_user_status_idx on verification
 create index if not exists reference_options_kind_idx on reference_options(kind, sort_order);
 
 alter table profiles add column if not exists id_card_image text;
+alter table profiles add column if not exists country_code text;
+alter table profiles add column if not exists id_card_front_image text;
+alter table profiles add column if not exists id_card_back_image text;
+alter table profiles add column if not exists id_card_selfie_image text;
 alter table verification_requests add column if not exists id_card_image text;
+alter table verification_requests add column if not exists id_card_front_image text;
+alter table verification_requests add column if not exists id_card_back_image text;
+alter table verification_requests add column if not exists id_card_selfie_image text;
 alter table verification_requests add column if not exists profile_snapshot jsonb;
 alter table verification_requests drop column if exists media_placeholder;
+drop table if exists reviews;
 
 do $$
 begin

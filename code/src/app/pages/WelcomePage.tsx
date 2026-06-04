@@ -37,7 +37,7 @@ export function WelcomePage() {
             lineHeight: 1.6,
           }}
         >
-          気軽に友達を見つけて、自然にコミュニケーション。長く続くつながりを作ろう。
+          言葉を越えて、心で繋ぐ
         </p>
       </div>
 
