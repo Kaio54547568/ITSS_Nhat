@@ -29,7 +29,7 @@ export function AdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [query,   setQuery]   = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page,    setPage]    = useState(1);
 
@@ -110,7 +110,7 @@ export function AdminUsersPage() {
         >
           <input
             type="text"
-            placeholder="ユーザーIDを検索"
+            placeholder="ユーザーを検索"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             className="flex-1 bg-transparent outline-none placeholder-white/80"
@@ -128,7 +128,7 @@ export function AdminUsersPage() {
           <div
             className="grid text-sm"
             style={{
-              gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px 88px",
+              gridTemplateColumns: "1fr 1fr 88px 88px 80px 88px",
               background: "#FFF8F4",
               borderBottom: "1.5px solid #F5DDD0",
               padding: "10px 16px",
@@ -136,9 +136,6 @@ export function AdminUsersPage() {
               fontWeight: 600,
             }}
           >
-            <button className="flex items-center gap-1" onClick={() => handleSort("id")}>
-              ID <SortIcon col="id" />
-            </button>
             <button className="flex items-center gap-1" onClick={() => handleSort("name")}>
               氏名 <SortIcon col="name" />
             </button>
@@ -158,15 +155,12 @@ export function AdminUsersPage() {
               onClick={() => navigate(`/admin/verification?user=${u.profileId || u.id}`)}
               className="grid items-center cursor-pointer hover:brightness-95 transition-all"
               style={{
-                gridTemplateColumns: "56px 1fr 1fr 88px 88px 80px 88px",
+                gridTemplateColumns: "1fr 1fr 88px 88px 80px 88px",
                 background: rowBg(u),
                 borderBottom: "1px solid #F5DDD0",
                 padding: "11px 16px",
               }}
             >
-              {/* ID */}
-              <span style={{ color: "#F97316", fontWeight: 700, fontSize: "0.9rem" }}>{u.id}</span>
-
               {/* Name */}
               <span style={{ fontWeight: 600, fontSize: "0.92rem", color: "#1A1A1A" }}>{u.name}</span>
 

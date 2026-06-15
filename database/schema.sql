@@ -390,3 +390,24 @@ drop trigger if exists verification_requests_set_updated_at on verification_requ
 create trigger verification_requests_set_updated_at
 before update on verification_requests
 for each row execute function set_updated_at();
+
+-- Synchronize name and email updates from profiles to profile_admin_overrides
+create or replace function sync_profile_to_admin_overrides()
+returns trigger
+language plpgsql
+as $$
+begin
+  update profile_admin_overrides
+  set
+    name = new.name,
+    email = coalesce(new.email, '')
+  where profile_id = new.id;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_sync_admin_overrides on profiles;
+create trigger profiles_sync_admin_overrides
+after update of name, email on profiles
+for each row
+execute function sync_profile_to_admin_overrides();
